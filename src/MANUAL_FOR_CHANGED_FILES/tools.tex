@@ -1,0 +1,205 @@
+\chapter{Tools}
+
+\section{Analyser for analysing the statistic}
+
+In the folder \glqq Analyser/ \grqq tools to analyse the statistic data are provided.
+The analyser is for statistic data, where something is averaged on the grid, e.g., com, vel, dens etc.
+\\[1ex]
+Syntax:\\[0.5ex]
+./analyser stat.dat fname \#columns-3
+\begin{itemize}
+\item \textit{analyser}: the executable
+\item \textit{stat.dat}: input file which is described below
+\item \textit{fname}: file name as given in the LAMMPS input file
+\item \textit{\#columns-3} number of columns in the statistic files minus 3, because the $x,y,z$-columns are always there.
+\end{itemize}
+Example:\\[0.5ex]
+./analyser stat.dat center\_rbc 11
+\\[2ex]
+In 3D there exist different possibilities to average
+\begin{itemize}
+\item The center-of-mass data, therefore the code in the folder \glqq3D/Center\_mass/\grqq\ has to be used.
+\item In order to average data from different partition separately use the code in \glqq3D/Part\_Separate/\grqq. The output is a file fname\#part\_tot.plt for every partition, with \#part the number of partition
+\item In order to average data from different partitions use the code in \glqq3D/Part\_Together/\grqq. The output is one file with the name fname\_tot.plt
+\end{itemize}
+The stat.dat file is similar for all cases and looks e.g., as follows:
+\begin{table}[h!]
+  \begin{tabular}{ll}
+    32 1 1       & - partitions: tot number, start, interval\\
+20 100000 100000 & - stat outputs: tot number, start, interval\\
+1 40 1           & - domain division: nx, ny, nz\\
+1.0 1.0 1.0 1.0  & - scale: x\_scale, y\_scale, z\_scale, dat\_scale\\
+1                & - standard deviation: 1 - calculate, 0 -no\\
+  \end{tabular}
+\end{table}
+The meaning of the lines is 
+\begin{enumerate}
+  \item 
+  \begin{itemize}
+    \item first number(32): total number of partition
+    \item second number (1): the smallest number of a partition, 
+    \item third number (1): interval between the numbers of the partitions
+  \end{itemize} 
+\item
+\begin{itemize}
+    \item first number(20): number of output files
+    \item second number (100000): timestep of the first file (stat\_start+dump\_each from the LAMMPS input file)
+    \item third number (100000): timestep-interval of the outputs (dump\_each from LAMMPS input file).
+  \end{itemize}
+\item domain division. Same numbers as in the LAMMPS input file for \textit{n1 n2 n3}
+\item scaling parameter for the x-coordinates, y-coordinates, z-coordinates and the data.
+\item Calculation of the standard deviation: yes (1) or no (0)
+\end{enumerate}
+Note: If in the second row the numbers cover more than you have output files, the averaging is nevertheless done correctly.
+
+\section{compiling \& running LAMMPS personal}
+To compile our group version of LAMMPS, you find the source code in the repository folder \textit{/blood/lammps\_personal/src/}.
+\newline
+Delete old object files:\\
+\textbf{make clean-all}
+\newline
+\textbf{make clean-machine}
+\newline
+compile LAMMPS and generate executable 'lmp\_iff':\\
+\textbf{gmake iff}
+\newline
+run LAMMPS:\\
+\textbf{mpirun -np \textit{Cores} lmp\_iff \textless \quad \textit{input\ file}}
+
+In general, the supercomputers have different architectures.\\For the supercomputer binaries, 'iff' has to be replaced in the above commands.
+
+\section{data\_domain}
+\label{sec:data_domain}
+Before running a simulation, an initial configuration of particles (called 'atoms' in \textit{LAMMPS}) has to be generated.\\This can be done by writing a parameter file called \textit{domain.dat} and running the program \textit{data\_domain}. data\_domain\_periodic is an extended version considering periodic boundary conditions for bonds and triangles.
+\subsection{data\_domain - code}
+Its code is in the repository at \textit{~/blood/Data\_File\_Creator/} and is compiled by\\ \textit{g++ data\_domain.cpp -o data\_domain}\\\textit{data\_domain} always processes the file called \textit{domain.dat} - no matter what you give as command-line parameter.\\It creates a file called \textit{data.out} with all the initial coordinates, momenta, etc. This is read by \textit{LAMMPS}; specified in the input file by\\ \textit{read\_data data.out}
+
+\subsection{domain.dat - parameter file}
+\textbf{Syntax of \textit{domain.dat}:}
+\begin{itemize}
+
+\item $  atom\_types \quad   individ\_ind $
+	\begin{itemize}
+	\item number of atom types in total (from single atoms, polymers, objects, borders)
+	\item 0 = no; 1 = yes: index for the use of individual bonds/angles/dihedrals
+	\end{itemize}
+
+\item $  mass\_ind \quad   mass_1 \quad   mass_2 ... $
+	\begin{itemize}
+	\item $ mass\_ind$ = 1: read individual masses
+	\item $ mass_i$: mass for atom type $i$; the number of masses should match the number of atom types
+	\end{itemize}
+
+\item $  moment\_ind \quad   moment_1 \quad   moment_2 ... $
+	\begin{itemize}
+	\item $ moment\_ind$ = 1: read individual moments
+	\item $ moment_i$: moment for atom type $i$; the number of moments should match the number of atom types
+	\end{itemize}
+
+\item $ x_{lo} \quad x_{hi} \quad y_{lo} \quad y_{hi} \quad z_{lo} \quad z_{hi} $ \\
+	{ global box size; cuboid shape}
+
+\item $num\_atom\_domains$ \\
+	{Number of atom domains. The next $num\_atom\_domains$ lines describe the different domains of single particles. Each of them has the following syntax:}
+
+\item $ atom\_type \quad cyl\_ind \quad random\_ind \quad x_{lo} \quad x_{hi} \quad y_{lo}(y_c) \quad y_{hi}(r\_min) \quad z_{lo}(z_c) \quad z_{hi}(r\_max) \quad n_x(n\_rand) \quad n_y \quad n_z $
+	\begin{itemize}
+	\item $atom\_type$: in the present domain, all particles are of this type
+	\item $cyl\_ind$ = 0 or 1: cylindrical domain = cylindrical arrangement of particles
+	\item $random\_ind$ = 0 or 1: random arrangement of particles
+	\item the next parameters describe the domain size. $c$ and $r$ for the cylindrical option (centre and radius; minimum and maximum: for a hollow cylinder)
+	\item $n_i$: number of atoms in each direction; $n_x \cdot n_y \cdot n_z = n\_total$. If random, only the first parameter is used $n\_rand = n\_total$.
+	\end{itemize}
+
+\item $num\_polymer\_domains$ \\
+	{Number of polymer domains. The next $num\_polymer\_domains$ lines describe the different domains of polymers. Each of them has the following syntax:}
+
+\item $ atom\_type \quad bond\_type \quad cyl\_ind \quad random\_ind \quad x_{lo} \quad x_{hi} \quad y_{lo}(y_c) \quad y_{hi}(r\_min) \quad z_{lo}(z_c) \quad z_{hi}(r\_max)$\\$ n_x(n\_rand) \quad n_y \quad n_z \quad bead\_num \quad r_{eq} \quad r\_sph \quad linear$
+	\begin{itemize}
+	\item Designed analogously to the atom domains.
+	\item The first polymer point will be always at the center points.
+	\item $linear = 0$: random walk, if $r\_sph>0.0$ will try to generate it within the sphere, so do not set it too small
+	\item $linear = 1,2,3$: aligned with x,y,z respectively.
+	\item $cyl\_ind = 2$: on a cylinder plus a polymer is rotated to get aligned with the cylinder radius
+	\end{itemize}
+
+\item $num\_object\_domains$ \\
+	{Number of object domains. The next $num\_object\_domains$ lines describe the different domains of objects. Each of them has the following syntax:}
+
+\item $atom\_type \quad bond\_type \quad angle\_type \quad dihedral\_type \quad cyl\_ind \quad random\_ind \quad x_{lo} \quad x_{hi} \quad y_{lo}(y_c)$\\$\quad y_{hi}(r\_min) \quad z_{lo}(z_c) \quad z_{hi}(r\_max) \quad n_x(n\_rand) \quad n_y \quad n_z \quad r\_scale \quad file\_name \quad \left( per_0 \quad per_1 \quad per_2 \right)$
+	\begin{itemize}
+	\item Designed analogously to the atom domains.
+	\item $cyl\_ind = 2$: on a cylinder plus an object is rotated to get aligned with the cylinder radius
+	\item $r\_scale$: start with the object being scaled by this factor; in the following time steps, the object rescales to its original shape. Useful for dense packing; starting with small objects.
+	\item $file\_name$: name of the input file containing the object information (coordinates, bonds, (tri)angles, dihedrals etc.); \hyperlink{syn:object_file}{see below}.
+	\item $per_i$: flag if periodic boundary conditions shall be considered in direction $i$; only available in the version data\_domain\_periodic
+	\end{itemize}
+
+\item $num\_border\_domains$ \\
+	{Number of border domains. The next $num\_border\_domains$ lines describe the different domains of borders. Each of them has the following syntax:}
+
+\item $atom\_type \quad cyl\_ind \quad x_{lo} \quad x_{hi} \quad y_{lo}(y_c) \quad y_{hi}(r\_min) \quad z_{lo}(z_c) \quad z_{hi}(r\_max)$\\$shift_x \quad shift_y \quad shift_z \quad linear \quad file\_name$
+	\begin{itemize}
+	\item Designed analogously to the atom domains.
+	\item $shift$: The border file has limited size. Maybe it starts at position 0.0 and ends at 5.0, but you want to put it into your box starting at 16.0. This parameter makes a global translation of the border.
+	\item $linear = 1$: no coordinate exchange
+	\item $linear = 2$: exchange x and y
+	\item $linear = 3$: exchange x and z
+	\item $file\_name$: name of the input file containing the border information
+	\end{itemize}
+
+\end{itemize}
+
+\textbf{Example:}\\ \\
+For a RBC (enclosing an inner fluid differing from the outer fluid) in a cylindrical, solid tube:\\
+4 1\\
+1 1.0 3.0 2.0 1.0\\
+1 1.0 1.0 1.0 1.0\\
+0.0 50.0 -13.53 13.53 -13.53 13.53\\
+2\\
+1 1 1 3.0 49.9 0.0 1.0 0.0 12.42 294412 0 0\\
+3 1 1 1.2 1.8 0.0 1.3033 0.0 3.5 1112 0 0\\
+0\\
+1\\
+2 1 1 1 0 0 1.5 1.5 0.0 0.0 0.0 0.0 1 1 1 1.0 \~{}/blood/Templates/3D/rbc\_3000\_def0.96\_x\_D8.dat\\
+1\\
+4 1 0.0 50.0 0.0 12.5212 0.0 13.5212 0.0 0.0 0.0 1 \~{}/blood/Border\_files/SDPD/box\_100x50x50\_n12\_p100\_b-80\_g7\_et100\_T0.2\_rc1.0\\
+
+There are in total four different atom types: the outer fluid (type 1), the inner fluid (3), the membrane vertices (2) and the border particles (4) (the atoms that make up the tube).\\
+
+\textbf{Description:}\\ \\
+This is the parameter file for the initial set-up/configuration. You specify the size of the whole simulation box, the number of atoms, objects (like RBCs), polymers and borders (like solid walls).\\Objects and borders are more complicated so they have to be provided by an external file. For the object-file syntax, \hyperlink{syn:object_file}{see below}. The border-files are the dump-files of a preceeding \textit{LAMMPS}-simulation run, which generated this border. Preceeding and present simulation have to match in parameters as density, conservative interaction, temperature and cutoff radius.\\The atom type, which has to be specified for each domain, [no matter if single atoms, polymers, objects or borders, ] corresponds to the types used in \textit{LAMMPS}' group command.\\The purpose of multiple (atom, polymer etc.) domains is that you can have different types or arrangements within one simulation box. 
+\\ \\
+\textbf{Syntax of object file:}
+%\label{syn:object_file}
+\hypertarget{syn:object_file}{}
+\begin{itemize}
+\item $num\_atoms \quad num\_bonds \quad num\_angles \quad num\_dihedrals$
+\item $ind\_atom\_type \quad ind\_bond\_type \quad ind\_angle\_type \quad ind\_dihedral\_type$\\
+	{0 - no individual types, 1 - must define individual types}
+\item $ind\_bond\_length \quad ind\_angle\_area \quad ind\_dihedral\_angle$\\
+	{0 - no individual values, 1 - must add individual values as last column (after the bond-/angle-/dihedral-partners)}
+\item $num\_atoms$ lines for the atoms' coordinates
+	\begin{itemize}
+	\item syntax: if $ind\_atom\_type=0$: ($x \quad y \quad z$)
+	\item syntax: if $ind\_atom\_type=1$: ($atom\_type \quad x \quad y \quad z$)
+	\end{itemize}
+\item $num\_bonds$ lines for the bonds-partners' indices:
+	\begin{itemize}
+	\item syntax: if $ind\_bond\_type=0$: ($p_1 \quad p_2$)
+	\item syntax: if $ind\_bond\_type=1$: ($bond\_type \quad p_1 \quad p_2$)
+	\item syntax: if $ind\_bond\_length=1$: ($p_1 \quad p_2 \quad l_0$)
+	\end{itemize}
+\item $num\_angles$ lines for the angles-partners' indices:
+	\begin{itemize}
+	\item syntax: if $ind\_angle\_type=0$: ($p_1 \quad p_2 \quad p_3$)
+	\item syntax: if $ind\_angle\_type=1$: ($angle\_type \quad p_1 \quad p_2 \quad p_3$)
+	\item syntax: if $ind\_angle\_area=1$: ($p_1 \quad p_2 \quad p_3 \quad A_0$)
+	\end{itemize}
+\item $num\_dihedrals$ lines for the dihedrals-partners' indices:
+	\begin{itemize}
+	\item syntax: if $ind\_dihedral\_type=0$: ($p_1 \quad p_2 \quad p_3 \quad p_4$)
+	\item syntax: if $ind\_dihedral\_type=1$: ($dihedral\_type \quad p_1 \quad p_2 \quad p_3 \quad p_4$)
+	\item syntax: if $ind\_dihedral\_angle=1$: ($p_1 \quad p_2 \quad p_3 \quad p_4 \quad \alpha_0$)
+	\end{itemize}
+\end{itemize}

@@ -1,0 +1,106 @@
+\select@language {english}
+\contentsline {chapter}{\numberline {}Modified files (exist in original LAMMPS)}{4}{chapter.1}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}angle}{4}{section.1.1}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}angle\_hybrid}{4}{section.1.2}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}atom}{4}{section.1.3}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}atom\_vec}{5}{section.1.4}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}atom\_vec\_hybrid}{5}{section.1.5}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}atom\_vec\_molecular (MOLECULE package)}{5}{section.1.6}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}bond}{5}{section.1.7}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}bond\_hybrid}{6}{section.1.8}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}comm}{6}{section.1.9}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}comm\_brick}{6}{section.1.10}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}create\_atoms}{6}{section.1.11}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}dihedral}{6}{section.1.12}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}domain}{6}{section.1.13}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}fix\_addforce}{7}{section.1.14}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}fix\_deposit}{7}{section.1.15}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}fix\_langevin}{7}{section.1.16}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}fix\_spring}{7}{section.1.17}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}input.cpp}{7}{section.1.18}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}lammps.cpp}{7}{section.1.19}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}Makefile}{7}{section.1.20}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}Make.sh}{7}{subsection.1.20.1}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}molecular}{7}{section.1.21}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}neigh\_bond}{7}{section.1.22}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}neighbor}{7}{section.1.23}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}neigh\_stencil}{7}{section.1.24}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}output}{7}{section.1.25}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}pair\_dpd}{8}{section.1.26}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}pair\_lj\_cut}{8}{section.1.27}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}read\_data.cpp}{8}{section.1.28}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}read\_restart.cpp}{8}{section.1.29}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}replicate.cpp}{8}{section.1.30}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}verlet.cpp}{8}{section.1.31}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}write\_data.cpp}{8}{section.1.32}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}write\_restart.cpp}{8}{section.1.33}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}MOLECULE/install.sh}{8}{section.1.34}
+\contentsline {chapter}{\numberline {}Added files}{9}{chapter.2}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}angle\_area\_volume}{9}{section.2.1}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}atom\_vec}{9}{section.2.2}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}atom\_vec\_sdpd}{9}{subsection.2.2.1}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}atom\_vec\_thermal}{10}{subsection.2.2.2}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}bond styles}{10}{section.2.3}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}bond\_area\_harmonic\_visc}{10}{subsection.2.3.1}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}bond\_area\_wlc\_pow\_visc}{10}{subsection.2.3.2}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}bond\_indivharmonic}{10}{subsection.2.3.3}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}bond\_indivharmonic\_visc}{10}{subsection.2.3.4}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}bond\_wlc\_pow\_all}{10}{subsection.2.3.5}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}bond\_wlc\_pow\_all\_visc}{10}{subsection.2.3.6}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}comm\_mosaic}{11}{section.2.4}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}create\_source}{11}{section.2.5}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}dihedral\_bend}{11}{section.2.6}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}dihedral\_bend\_zero}{12}{section.2.7}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}fixes}{13}{section.2.8}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_active\_fluct}{13}{subsection.2.8.1}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_bond\_create\_break}{13}{subsection.2.8.2}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_break\_pol}{14}{subsection.2.8.3}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_catch\_bond}{15}{subsection.2.8.4}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_e}{16}{subsection.2.8.5}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_force\_bound}{16}{subsection.2.8.6}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_inflow}{18}{subsection.2.8.7}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_inflow\_periodic}{19}{subsection.2.8.8}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_lees\_edwards}{19}{subsection.2.8.9}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_nve\_sdpd}{19}{subsection.2.8.10}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_nve\_thermal}{20}{subsection.2.8.11}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_outflow}{20}{subsection.2.8.12}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_polymer\_activate}{20}{subsection.2.8.13}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_setvel}{21}{subsection.2.8.14}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_solid\_bound}{21}{subsection.2.8.15}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_wall\_force}{24}{subsection.2.8.16}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}fix\_wall\_lj126\_force}{24}{subsection.2.8.17}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}MersenneTwister}{25}{section.2.9}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}pair styles}{25}{section.2.10}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}pair\_dpd\_thermal}{25}{subsection.2.10.1}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}pair\_lj\_own}{26}{subsection.2.10.2}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}pair\_sdpd\_full}{27}{subsection.2.10.3}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}pair\_sdpd}{28}{subsection.2.10.4}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}pair\_sdpd\_no\_moment}{29}{subsection.2.10.5}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}set\_individ}{29}{section.2.11}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}statistic}{29}{section.2.12}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_com}{30}{subsection.2.12.1}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_com\_time}{30}{subsection.2.12.2}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_corr}{31}{subsection.2.12.3}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_dens}{31}{subsection.2.12.4}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_e}{31}{subsection.2.12.5}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_extension}{31}{subsection.2.12.6}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_force}{32}{subsection.2.12.7}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_gyro}{32}{subsection.2.12.8}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_msd}{32}{subsection.2.12.9}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_rho}{33}{subsection.2.12.10}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_stress}{33}{subsection.2.12.11}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_vcorr}{33}{subsection.2.12.12}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_vel}{34}{subsection.2.12.13}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}COPY}{34}{section.2.13}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}single\_triangle}{34}{subsection.2.13.1}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_DLS}{34}{subsection.2.13.2}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}statistic\_SLS}{35}{subsection.2.13.3}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}vector}{35}{section.2.14}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}MAKE/MINE}{35}{section.2.15}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}USER-SDPD}{35}{section.2.16}
+\contentsline {chapter}{\numberline {}Tools}{36}{chapter.3}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}Analyser for analysing the statistic}{36}{section.3.1}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}compiling \& running LAMMPS personal}{37}{section.3.2}
+\contentsline {section}{\numberline {\hspace *{-0.6em}}data\_domain}{37}{section.3.3}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}data\_domain - code}{37}{subsection.3.3.1}
+\contentsline {subsection}{\numberline {\hspace *{-0.6em}}domain.dat - parameter file}{37}{subsection.3.3.2}

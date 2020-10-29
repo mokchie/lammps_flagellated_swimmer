@@ -1,0 +1,48 @@
+\begin{thebibliography}{1}
+
+\bibitem{Fedosov2010}
+Dmitry~A. Fedosov.
+\newblock {\em Multiscale Modeling of Blood Flow and Soft Matter}.
+\newblock PhD thesis, Brown University, 2010.
+
+\bibitem{Pereverzev2005a}
+Yuriy~V Pereverzev, Oleg~V Prezhdo, Manu Forero, Evgeni~V Sokurenko, and
+  Wendy~E Thomas.
+\newblock The two-pathway model for the catch-slip transition in biological
+  adhesion.
+\newblock {\em Biophys J}, 89(3):1446--1454, 2005.
+
+\bibitem{Prezhdo2009a}
+Oleg~V Prezhdo and Yuriy~V Pereverzev.
+\newblock Theoretical aspects of the biological catch bond.
+\newblock {\em Accounts Chem Res}, 42(6):693--703, 2009.
+
+\bibitem{Kim2010a}
+Jongseong Kim, Cheng-Zhong Zhang, Xiaohui Zhang, and Timothy~A Springer.
+\newblock A mechanically stabilized receptor-ligand flex-bond important in the
+  vasculature.
+\newblock {\em Nature}, 466(7309):992--995, 2010.
+
+\bibitem{Lei20113765}
+Huan Lei, Dmitry~A. Fedosov, and George~Em Karniadakis.
+\newblock Time-dependent and outflow boundary conditions for dissipative
+  particle dynamics.
+\newblock {\em Journal of Computational Physics}, 230(10):3765 -- 3779, 2011.
+
+\bibitem{Allen_CSL_1991}
+M.~P. Allen and D.~J. Tildesley.
+\newblock {\em Computer {S}imulation of {L}iquids}.
+\newblock Clarendon Press, Oxford, 1991.
+
+\bibitem{Mueller_SDPD_2015}
+K.~M{\"u}ller, D.~A. Fedosov, and G.~Gompper.
+\newblock Smoothed dissipative particle dynamics with angular momentum
+  conservation.
+\newblock {\em Journal of Computational Physics}, 281:301--315, 2015.
+
+\bibitem{Espanol_SDPD_2003}
+P.~Espa\~{n}ol and M.~Revenga.
+\newblock Smoothed dissipative particle dynamics.
+\newblock {\em Phys. Rev. E}, 67:026705, 2003.
+
+\end{thebibliography}

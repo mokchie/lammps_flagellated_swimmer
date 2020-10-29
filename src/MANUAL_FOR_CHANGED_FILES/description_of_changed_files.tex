@@ -1,0 +1,80 @@
+\documentclass[a4paper,10pt]{scrreprt}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[latin1]{inputenc}
+\usepackage{graphicx}
+\usepackage{cite}
+\usepackage[hidelinks]{hyperref}
+\usepackage{amsfonts}
+\usepackage{dsfont}
+\usepackage[capitalise]{cleveref}
+\usepackage{geometry}
+
+
+
+\usepackage{listings}
+\usepackage{color}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3,
+  mathescape=true
+}
+
+
+% Title Page
+
+\title{Description of modified and added LAMMPS files and commands}
+\author{Kathrin M\"uller, Johannes Mauer, Dinar Katanov, Masoud Hoore,\\
+  Davod Alizadehrad, Fatemeh Alidadi, Sebastian Hillringhaus,\\
+  Dmitry Fedosov}
+
+
+\setlength{\parindent}{0pt}
+
+\geometry{a4paper,left=25mm,right=20mm, top=2cm, bottom=3cm}
+
+% Include subsubsection to contents
+\setcounter{tocdepth}{3}
+ \setcounter{secnumdepth}{3}
+% Chapter without numbering
+\renewcommand{\thechapter}{}
+% Section without numbering
+\renewcommand{\thesection}{\hspace*{-0.6em}}
+% subsection without numbering
+\renewcommand{\thesubsection}{\hspace*{-0.6em}}
+% subsubsection without numbering
+\renewcommand{\thesubsubsection}{\hspace*{-0.6em}}
+% equations are numbered consecutively
+\renewcommand{\theequation}{\arabic{equation}}
+
+
+\begin{document}
+
+\maketitle
+ \tableofcontents
+
+\input{modified_files.tex}
+\input{added_files.tex}
+\input{tools.tex}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\bibliography{paper.bib} 
+\bibliographystyle{unsrt}
+\end{document}

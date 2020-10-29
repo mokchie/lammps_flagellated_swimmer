@@ -1,0 +1,895 @@
+%!TEX root=description_of_changed_files.tex
+
+\chapter{Added files}
+
+
+\section{angle\_area\_volume}
+
+Calculation of the area and volume conservation constraint of a cell modeled like in \cite{Fedosov2010}. The energy is
+\begin{equation}\label{eq:av}
+ V_{angle} = \frac{k_a(A-A_0^{tot})^2}{2A_0^{tot}}+\sum_{k\in 1...N_t}{\frac{k_d(A_j-A^k_0)^2}{2A^k_0}}+\\
+\frac{k_v(V-V_0^{tot})^2}{2V_0^{tot}}
+\end{equation}
+with $A$ the Area of one cell, $A_0^{tot}$ the global equilibrium area, $A_k$ the area of the kth triangle, $A^k_0$ the equilibrium Area of the kth triangle,$V$ the Volume and $V_0^{tot}$ the equilibrium volume. Furthermore $k_a$, $k_d$ and $k_v$ are the global area, local area and volume constrain constants, respectively.
+
+The related forces $\vec{F} = -\nabla V$ are for the area constraint
+\begin{align}
+(f_{x1}, f_{y1}, f_{z1}) &= \alpha(\vec{\xi}\times\vec{a_{32}}) \nonumber \\
+(f_{x2}, f_{y2}, f_{z2}) &= \alpha(\vec{\xi}\times\vec{a_{13}})\\
+(f_{x3}, f_{y3}, f_{z3}) &= \alpha(\vec{\xi}\times\vec{a_{21}})\nonumber 
+\end{align}
+with $\vec{a_{ij}}$, $(i,j)\in \{1,2,3\}$ the three side vectors(?) of one triangle, the normal $\vec{\xi}=\vec{a}_{21}\times\vec{a}_{31}$ and  $A_k= |\vec{\xi}|/2$. For the global area conservation it is $\alpha=\beta_{\alpha}/(4A_k)$ with $\beta_{\alpha}=k_a(A-A_0^{tot})/A_0^{tot}$ for the kth triangle and $i \in \{a,...,N_v\}$ and for the local area constraint yields $\alpha = -k_d(A_k-A_0)/(4A_0A_k)$.
+
+For the volume constraint is
+\begin{align}
+(f_{x1}, f_{y1}, f_{z1}) &= \frac{\beta_v}{6}(\vec{\xi}/3+\vec{t}_c\times\vec{a_{32}}) \nonumber \\
+(f_{x2}, f_{y2}, f_{z2}) &= \frac{\beta_v}{6}(\vec{\xi}/3+\vec{t}_c\times\vec{a_{13}})\\
+(f_{x3}, f_{y3}, f_{z3}) &= \frac{\beta_v}{6}(\vec{\xi}/3+\vec{t}_c\times\vec{a_{21}})\nonumber 
+\end{align}
+with $\vec{t}_c$ the center of mass of the kth triangle and $\beta_v = \frac{k_v(V-V_0^{tot})}{V_0^{tot}}$.
+
+\underline{Syntax:}\\
+angle\_style \quad area/volume \\
+angle\_coeff \quad angle\_type $k_a$  $A_0^{tot}$ $k_v$ $V_0^{tot}$ $k_d$
+
+
+\section{atom\_vec}
+
+
+\subsection{atom\_vec\_sdpd}
+
+In order to use SDPD with angular momentum conservation a new type of atom is included to LAMMPS.
+\\[2ex]
+{\bfseries Syntax:}\\
+atom\_style    \textit{individual} sdpd
+\begin{itemize}
+\item \textit{individual}: $0$ or $1$
+\end{itemize}
+
+If \textit{individual} is $1$ the individual bond-lengths, triangle-areas, and angles between triangles are read from the data-input file.
+With \textit {individual} = $0$ these are not read in, as for the original LAMMPS.
+\\[2ex]
+This atom style is an extended molecular atom-style.
+Additional atom parameters are the spin angular velocity ($\omega$, omega) and the torque.
+For details please see \nameref{sec:pair/sdpd/full}, \nameref{sec:pair/sdpd}, and \nameref{sec:fix/nve/sdpd}.
+\\[2ex]
+In the code the omega is handled similar to the velocity and the torque similar to the force.
+\\[2ex]
+Note: this type is \underline{not} for SDPD without angular momentum conservation
+
+\subsection{atom\_vec\_thermal}
+ For DPDE rho, internal temperature and variation of it, potential in time $t$ and time $t-\Delta t$  are added. Similar to atom-vec-molecular:\\
+ First for the individual data bond length, angle area, and dihedral angle are added.\\
+ Second in the functions pack border, pack border vel, unpack border and unpack border- vel the image flag is communicated with the ghost particles.\\
+ Third functions pack exchange, unpack exchange , pack restart and unpack restart are changed in order to communicate the internal temperature, bond length, angle area and dihedral angle.
+\section{bond styles}
+
+\subsection{bond\_area\_harmonic\_visc}
+
+\subsection{bond\_area\_wlc\_pow\_visc}
+
+\subsection{bond\_indivharmonic}
+\label{sub:fix_indivharmonic}
+
+This bond-style is in most things the same as the default \emph{bond\_harmonic} style from LAMMPS except that for every bond, an individual rest length $r_{i,0}$ is defined at the beginning of the simulation. This results in a perfect stress free state at the beginning.
+
+The potential energy for every bond $i$ is therefore given by
+\begin{align}
+  E_i = K \left(r-r_{i,0}\right)^2.
+\end{align}
+As for \emph{bond\_harmonic}, the typical factor $1/2$ is moved to the definition of $K$. 
+
+{\bfseries Syntax:}
+
+\begin{lstlisting}
+    bond_style indivharmonic
+    bond_coeff bond_ID $K$ $r_0$
+\end{lstlisting}
+Note, that $r_0$ is just defined for coherence with the original \emph{bond\_harmonic} style and has no effect within the simulation. It can be useful to put $\langle r_{i,0} \rangle$ here, so that one has a estimate for the bonds in the simulation.
+
+
+
+\subsection{bond\_indivharmonic\_visc}
+
+\subsection{bond\_wlc\_pow\_all}
+
+\subsection{bond\_wlc\_pow\_all\_visc}
+
+Calculation of the spring model consisting of a the attractive worm-like-chain-model, a repulsive power function and membrane viscosity.
+
+The potential is
+%
+\begin{equation}\label{eq:ubond}
+	U_{bond} = U_{WLC} + U_{POW}
+\end{equation}
+%
+the worm-like-chain potential is
+%
+\begin{equation}\label{eq:uwlc}
+	U_{WLC} = k_BT\frac{l_m}{4p}\frac{3x^2-2x^3}{1-x} 
+\end{equation}
+%
+with  $x=l/l_m \in (0,1)$, $l$ the spring length, $l_m$ is the maximum spring extension, $p$ is the persistence length and $k_BT$ is the energy per unit mass. 
+The power potential is
+% 
+\begin{equation}\label{eq:upow}
+ U_{POW}(l_i)=\begin{cases}
+             \frac{k_p}{(m-1)l_i^{m-1}} & \text{for \ } m>0, m \neq 1 \\
+		-k_p\log{(l_i)} & \text{for \ } m=1
+            \end{cases}
+\end{equation}
+%
+with $k_p$ the force coefficient and m a exponent.
+
+The Forces are
+%
+\begin{equation}\label{eq:fwlc}
+	\vec{f}_{wlc}(l) = -\frac{k_BT}{p}\left(\frac{1}{4(1-x^2)}-\frac{1}{4}+x\right)\hat{I}_{ij}
+\end{equation}
+%
+\begin{equation}\label{eq:fpow}
+	\vec{f}_{pow}=\frac{k_p}{l^m}\hat{I}_{ij}
+\end{equation}
+%
+with $\hat{I}_{ij}=\vec{l}_{ij}/l$ the vector of unit length between the spring end $i$ and $j$, $l=|\vec{l}_{ij}|$, $x=l/l_m$.
+
+In the Simulation $p$ and $k_p$ are not known, but the ,macroscopic shear modulus given by
+%
+\begin{equation}\label{eq:mu0}
+	\mu_0 = \frac{\sqrt{3}}{4}\left(\frac{k_BT}{pl_mx_0}\left(\frac{x_0}{2(1-x_0)^3}-\frac{1}{4(1-x_0)^2}+\frac{1}{4}\right) + \frac{k_p(m+1)}{l_0^{m+1}}\right)
+\end{equation}
+%
+with $l_0$ the equilibrium spring length. At a spring length equal the equilibrium spring length the superposition of the two forces equation \ref{eq:fwlc} and \ref{eq:fpow} should be zeros and we get
+%
+\begin{equation}\label{eq:kp}
+	k_p = \frac{l_0^m}{p}k_BT \left(\frac{1}{4(1-x_0)^2}-\frac{1}{4}+x_0\right)
+\end{equation}
+%
+With equation \ref{eq:mu0} and \ref{eq:kp}  we obtain $p$ and $k_p$.
+
+Additional we consider membrane viscosity with leads to an additional force consisting out of a dissipative and a random force. The dissipative force is
+% 
+\begin{equation}
+	\vec{F}^D_{ij} = -\gamma^T\vec{v}_{ij} -\gamma^C(\vec{v}_{ij}\cdot \hat{e}_{ij})\hat{e}_{ij}
+\end{equation}
+%
+and the random force is
+%
+\begin{equation}
+	F^R_{ij}dt = \sqrt{2k_BT}\left(\sqrt{2\gamma^T} \bar{dW_{ij}^S} + \sqrt{3\gamma^C-\gamma^T} \frac{tr[dW_{ij}]}{3}I\right)\hat{e_{ij}}
+\end{equation}
+%
+with I the unit matrix, $tr[dW_{ij}]$ is the trace of a random matrix of independent Wiener increments and $\bar{dW_{ij}^S} = dW_{ij}^S - I tr[dW_{ij}]/3$ is the traceless symmetric part. $\gamma_C$ and $\gamma_T$ are the dissipative parameters
+
+\underline{Syntax:}\\
+bond\_style \quad wlc/pow/all/visc\\
+bond\_coeff \quad bond\_type $k_BT$ $x_0$ $\mu_0$ $m$ $\gamma_C$ $\gamma_T$ (usually $x_0=2.2$ and $\gamma_C = \gamma_T/3$)\\
+\textit{Idea: calculate pow with linear interpolation like in pair\_dpd}
+
+\hspace{2em}
+
+Modification of bond\_wlc\_pow\_all and bond\_wlc\_pow\_all\_visc (22.01.2015):
+In the function \textbf{init\_style} the line: if (setflag[i] == 0) error->all(FLERR,"All bond coeffs are not set"); has been commented, because otherwise these bond styles are not working with bond\_hybrid. 
+The if-loop goes through all nbondtypes, but depending, when this loop starts setflag is 0 for the cases with different bond styles and the program is stopped.
+
+
+\section{comm\_mosaic}
+In order to have a personalized grid of processors the style \textbf{mosaic} is added. It's done to exclude idle processors from our simulation. From our simulation box, we take only that subdomains, which contain 'particles'. That subdomains have usually irregular shape.
+
+The idea is that we divide our domain to as many subdomain as many processors we want to partition. The division itself works using self-written soft 'partition', which takes atoms with their coordinates and passes them to graf-optimizer soft 'Metis'.
+
+Metis divides the domain into given number of subdomains by optimizing number of neighbours. Then 'partition' writes out a file assigning which atom belongs to which processor and neighbors of every processor to exchange particles. That file should be given to Lammps.
+
+\textbf{Syntax}
+
+comm\_style      mosaic free\_partition.dat
+
+'communication style' -- 'mosaic' -- 'partition\_file'
+
+The common problem is 'Not all atoms assigned correctly'. It happends, when we have different number of atoms in 'partition' output file and in 'data.out'. To avoid that, increase a little bit the simulation box size in theinput file for 'partition', or increase the number of bins (domain discretization).
+
+\section{create\_source}
+
+\section{dihedral\_bend}
+
+Calculation of bending between two adjacent triangles with a common edge. The energy is given by
+%
+\begin{equation}
+  V_\mathrm{bending} = \sum_{j\in1..N_s}k_b[1-\cos(\theta_j-\theta_j^0)]
+\end{equation}
+%
+with $\theta_j$ the instantaneous angle between the triangles and  $\theta_j^0$ the spontaneous angle between this faces. The force is given by
+%
+\begin{align}
+  (f_{x1}, f_{y1}, f_{z1}) &=& b_{11}(\vec{\xi}\times\vec{a}_{32})+b_{12}(\vec{\zeta}\times\vec{a}_{32}) \nonumber \\
+(f_{x2}, f_{y2}, f_{z2}) &=& b_{11}(\vec{\xi}\times\vec{a}_{13})+b_{12}(\vec{\xi}\times\vec{a}_{34}+\vec{\zeta}\times\vec{a}_{13})+b_{22}(\vec{\zeta}\times\vec{a}_{34})\nonumber \\
+(f_{x3}, f_{y3}, f_{z3}) &=& b_{11}(\vec{\xi}\times\vec{a}_{21})+b_{12}(\vec{\xi}\times\vec{a}_{42}+\vec{\zeta}\times\vec{a}_{21})+b_{22}(\vec{\zeta}\times\vec{a}_{42})\nonumber \\
+(f_{x4}, f_{y4}, f_{z4}) &=& b_{12}(\vec{\xi}\times\vec{a}_{23})+b_{22}(\vec{\zeta}\times\vec{a}_{23})
+\end{align}
+%
+with the triangle normals $\vec{\xi}$ (see above) and $\vec{\zeta}=\vec{a}_{34}\times\vec{a}_{24}$ and the corresponding areas $A_1=\xi/2$ and $A_2=\zeta/2$ and $b_{11}=-\beta_b\cos{\theta}/\xi^2$, $b_{12}=\beta_b/(\xi\zeta)$ and $b_{22}=\beta_b\cos{\theta}/\zeta^2$ with $\beta_b=k_b(\sin{\theta}\cos{\theta_0}-\cos{\theta}\sin{\theta_0})/\sqrt{1-\cos^2\theta}$\\
+
+Note that $k_b = \frac{2}{\sqrt{3}} k_c$ with bending rigidity $k_c$.\\
+
+\textbf{Syntax}\\
+dihedral\_style \quad bend \\
+dihedral\_coeff \quad dih\_type $k_b$
+
+
+\section{dihedral\_bend\_zero}
+
+\emph{DO NOT USE THIS FIX. It contributes to the elastic modulus of the membrane, which is not accounted for yet. Needs fixing.}
+
+Calculation of bending between two adjacent triangles with a common edge. In comparison to \emph{dihedral\_bend}, there is no spontaneous curvature. The energy is given by
+
+\begin{align}
+  V_\mathrm{bending} = \frac {3 \kappa}{4} \sum_{\langle i, j \rangle} \frac{l_{ij}^2}{A_i + A_j} \left(1 + \cos \theta_{ij} \right)
+\end{align}
+where the sum runs over adjacent triangles $i$ and $j$ that share the common edge with length $l_{ij}$ and have the area of $A_i$ and $A_j$ respectively. The factor $\kappa$ is the bending rigidity of the membrane and $\theta_{ij}$ the angle between the normal vectors of the triangles. Assuming that triangle $i$ is made from the points $(1, 2, 3)$ and $j$ from $(2, 3, 4)$, the corresponding forces are given by
+
+\begin{align}
+  \vec{f_1} &=& \left(b_{11} + c_1 \right) \left(\vec{n}_i \times \vec{a}_{32}\right) + &b_{12} \left(\vec{n}_j \times \vec{a}_{32}\right), \nonumber \\
+  \vec{f_2} &=& \left(b_{11} + c_1 \right) \left(\vec{n}_i \times \vec{a}_{31}\right) + &b_{12} \left(\vec{n}_i \times \vec{a}_{34} + \vec{n}_j \times \vec{a}_{31}\right) &+& \left(b_{22} + c_2\right) \left(\vec{n}_j \times \vec{a}_{34} \right) &+ &c_3 \vec{a}_{32}, \nonumber \\
+  \vec{f_3} &=& \left(b_{11} + c_1 \right) \left(\vec{n}_i \times \vec{a}_{21}\right) + &b_{12} \left(\vec{n}_i \times \vec{a}_{24} + \vec{n}_j \times \vec{a}_{21}\right) &+&\left(b_{22} + c_2\right) \left(\vec{n}_j \times \vec{a}_{24} \right) &+ &c_3 \vec{a}_{32}, \nonumber \\
+  \vec{f_4} &=& &b_{12} \left(\vec{n}_i \times \vec{a}_{32}\right) &+ &\left(b_{22} + c_2\right) \left(\vec{n}_j \times \vec{a}_{32}\right) \phantom{+}. & & \label{eq: bend_zero_forces}
+\end{align}
+
+Here $\vec{n}_i$ and $\vec{n}_j$ are the normal vectors of the triangles. The coefficients in \eqref{eq: bend_zero_forces} are given by
+\begin{align}
+  b_{11} &= -\frac 34 \kappa \frac{l_{ij}^2}{A_i + A_j} \frac{\cos{\theta_{ij}}}{\vec{n}_i^2} \nonumber \\
+  b_{12} &= \phantom{-}\frac 34 \kappa \frac{l_{ij}^2}{A_i + A_j} \frac{\cos{\theta_{ij}}}{\left\lvert \vec{n}_i \right\rvert \left\lvert \vec{n}_j \right\rvert} \nonumber \\
+  b_{22} &= -\frac 34 \kappa \frac{l_{ij}^2}{A_i + A_j} \frac{\cos{\theta_{ij}}}{\vec{n}_j^2} \nonumber \\
+  c_{1} &= \phantom{-}\frac 34 \kappa \frac{l_{ij}^2}{\left(A_i + A_j\right)^2} \frac{1+\cos{\theta_{ij}}}{A_i} \nonumber \\
+  c_{2} &= \phantom{-}\frac 34 \kappa \frac{l_{ij}^2}{\left(A_i + A_j\right)^2} \frac{1+\cos{\theta_{ij}}}{A_j} \nonumber \\
+  c_{3} &= \phantom{-}\frac 64 \kappa \frac{1+\cos{\theta_{ij}}}{A_i + A_j}
+\end{align}
+
+Notice if you switch from \emph{dihedral\_bend} that the coefficient is now the bending rigidity of the membrane without further conversion.
+
+\textbf{Syntax}\\
+dihedral\_style \quad bend/zero\\ 
+dihedral\_coeff \quad dih\_type $\kappa$
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%% Fixes %%%%%%%%%%%%
+\input{added_files_fix.tex}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{MersenneTwister}
+
+\section{pair styles}
+
+\subsection{pair\_dpd\_thermal}
+Calculation of DPDE interaction which consists of DPD interaction and heat exchange due to conduction.\\
+Syntax\\
+pair\_style dpd/thermal $c_{v}$ cutoff seed
+\begin{itemize}
+	\item $c_{v}$ = heat capacity of each dpde particle
+	\item cutoff =  global cut off for DPDE interactions (distance units)
+	\item seed = random seed (positive integer)
+\end{itemize}
+pair coeff iatom jatom $a_{0}$ $\sigma$ $\kappa_{0}$ $s$ cutoff 
+\begin{itemize}
+	\item $a_{0}$ = conservative force coefficient
+	\item $\sigma$ = noise amplitude
+	\item $\kappa_{0}$ = heat conduction coefficient 
+	\item $s$ = exponent of the weight functions
+	\item cutoff =  local cut off radius
+\end{itemize}
+
+Example:\\
+pair\_style dpd/thermal 200.0 1.0 645\\
+pair\_coeff * * 25.0  3.0 0.001 0.25 1.0\\
+Description:\\
+Style dpd/thermal computes a force field and heat exchanges for DPDE particles. The force on atom i due atom atom j is given as a sum of three terms:
+\begin{equation}
+F_{ij} = F_{ij}^{C}+F_{ij}^{D}+F_{ij}^{R}
+\end{equation}
+which conservative force ($\textbf{F}^{C} $), dissipative force ($ \textbf{F}^{D} $) and random force ($ \textbf{F}^{R} $) are:\\
+\begin{equation}
+\begin{aligned}
+\textbf{F}_{ij}^{C} = a_{ij} \omega ^{C}(r_{ij}) \hat{\textbf{r}}_{ij}\\ 
+\textbf{F}_{ij}^{D} = -\gamma_{ij} \omega ^{D}(r_{ij}) (\textbf{v}_{ij}.\hat{\textbf{r}}_{ij}) \hat{\textbf{r}}_{ij}  \\
+\textbf{F}_{ij}^{R} = \sigma_{ij} \omega ^{R}(r_{ij}) \xi _{ij} \Delta t^{-1/2}\hat{\textbf{r}}_{ij}
+\end{aligned}
+\end{equation}
+$ \textbf{r}_{ij} $ and $ \textbf{v}_{ij} $ are relative position and velocity respectively. Coefficient of conservative force ($ a_{ij} $) controls fluid compressibility. $ \gamma _{ij}$ and $ \sigma _{ij}$ are  friction and noise amplitudes which they are connected to each other with $ \gamma _{ij} = \dfrac{\sigma_{ij} ^{2}}{4k_{B}}\left( \dfrac{1}{T_{i}}-\dfrac{1}{T_{j}}\right)$. Here $ \sigma _{ij}$ is chosen as a constant and $\gamma?{ij}$ is calculated. $ \xi _{ij} $ is Gaussian white noise function with zero mean and unit variance that is symmetric. It means: $ \xi _{ij} = \xi _{ji} $ (as a consequence: $ \textbf{F}_{ij} = - \textbf{F}_{ji} $ so momentum is conserved). Range of forces are controlled by weight functions ($ \omega ^{C} , \omega ^{D}$ and $ \omega ^{R} $) which are commonly given by:\\
+\begin{center}
+	\begin{equation}
+	\omega ^{C}(r_{ij}) =
+	\begin{cases}
+	1-\dfrac{r_{ij}}{r_{c}} & r_{ij} \leq r_{c}\\
+	0 & r_{ij} > r_{c}
+	\end{cases} 
+	\end{equation}
+	\begin{equation}
+	\omega ^{D}(r_{ij}) = \big(\omega ^{R}(r_{ij})\big)^{2}=
+	\begin{cases}
+	\big(1-\dfrac{r_{ij}}{r_{c}}\big)^{2s} & r_{ij} \leq r_{c}\\
+	0 & r_{ij} > r_{c}
+	\end{cases} 
+	\end{equation}
+\end{center}
+Here $ r_{c} $ is cutoff radius and $ s $ affects fluid viscosity.
+Heat flux is summation of two parts: $ q_{ij} =\left(q_{ij}^{c}+q_{ij}^{w}\right)$. First part of heat flux ($q_{ij}^{c}$) is because of thermal fluctuations and conduction there which is:\\
+\begin{center}
+	\begin{equation}\label{q_E}
+	q_{ij}^{c} = \kappa _{ij} \omega ^{2}_{C}(r_{ij}) \Big( \frac{1}{T_{i}}-\frac{1}{T_{j}} \Big) + \alpha _{ij} \omega _{c}(r_{ij}) \zeta _{ij} \Delta t ^{-1/2} 
+	\end{equation}
+\end{center}
+where:
+$ \kappa _{ij} = \frac{\kappa _{0} c_{v} ^{2}}{4k_{B}}(T_{i}+T_{j})^{2} $ and $ \alpha _{ij} ^{2} = 2k_{B}\kappa _{ij} $\\
+and $ \kappa _{0} $ is mesoscale heat conduction coefficient.\\
+The second terms in equation of conduction heat exchange shows the random heat flux that occurs due to thermal fluctuations. Total energy of system is conserved so random heat flux has to be antisymmetric that means: $ \zeta _{ij} = -\zeta _{ij} $. $ \zeta _{ij} $  is selected from a standard Gaussian distribution with zero mean and unit variance.  \\ 
+The second part of heat flux ($q_{i}$) is work flux ($q^{w}_{ij}$). The other name for $ q^{w}_{ij} $ is viscous heat flux. It can calculated directly by:
+\begin{equation}
+\begin{aligned}
+q^{w}_{ij} &= \dfrac{1}{2}\omega^{D}(r_{ij})\left[\gamma _{ij} (\dfrac{\textbf{r}_{ij}}{r_{ij}}.\textbf{r}_{ij})^{2}-\dfrac{\sigma ^{2}_{ij}}{m}\right]-\\
+&\dfrac{1}{2}\sigma_{ij} \omega^{R}(r_{ij})(\dfrac{\textbf{r}_{ij}}{r_{ij}}.\textbf{r}_{ij})\Delta t^{-1/2} \xi _{ij} 
+\end{aligned}
+\end{equation}
+Hear calculation of $ q_{ij}^{w} $ is done indirectly by total Energy of system. Since the total energy of system is constant (internal energy + mechanical energy = const.)  variation of internal energy is equal to variation of mechanical energy that is summation of kinetic energy and potential energy: $ q^{w}_{i} = \sum\limits_{i\ne j} q^{w}_{ij} = \sum\limits_{i \ne j}q^{c}_{ij}+ \Delta P +\Delta K $.\\ 
+
+\subsection{pair\_lj\_own}
+
+Calculation of a Lennard-Jones (LJ) interaction similar as the function LJ/cut with the addition to be able to combine different \glqq special\_bonds\grqq\ and to have different interactions for the internal interactions of a molecule and interactions between different molecules of the same particle id.
+\\[2ex]
+Syntax:
+\\[1ex]
+pair\_style lj/own cut-global keyword arg
+\\[2ex]
+\textbf{pair\_coeff} iatom jatom $\epsilon$ $\sigma$ which-special-bond \{(cut-local) (\textbf{scale} parameter) (\textbf{molecule} epsilon sigma cut-local)\}
+
+\begin{itemize}
+\item \textit{cut-global}: cut-off distance ($r_\mathrm{cutoff}$). Just for smaller particle distances the interaction is calculated.
+\item \textit{keywords}: smooth ${\mathrm{arg}} = f_{\mathrm{smooth}}$ (maximum force applied by this pair, in order to avoid simulation crash due to high forces. See \nameref{sec:pair_lj_cut})
+\item \textit{iatom, jatom}: atom ids, between which this pair interactions should be calculated
+\item $\epsilon$: strength of LJ interaction, see \cref{eq:LJ/own}.
+\item $\sigma$: LJ radius, see \cref{eq:LJ/own}
+\item which-special-bond: defines special bond for given atom types: value can be 0 or 1 or 2
+\item cut-local (optional): changes the cutoff for this pair interaction to cut-local, otherwise it is cut-global.
+\item scale: Scale parameter for cutoff
+\item molecule: If atoms belong to different molecules, other parameters can be specified.
+\end{itemize}
+
+Explanation:
+\\[2ex]
+The calculated energy between two atoms is:
+\begin{equation}\label{eq:LJ/own}
+E = 4\epsilon \left[ \left( \frac{\sigma}{r} \right)^{12} -  \left(  \frac{\sigma}{r} \right)^6 \right]
+\end{equation}
+if $r<r_\mathrm{cutoff}$.
+\\[2ex]
+For simulations where the special-bonds should be different for different pair interaction, e.g., for a polymer with internal attraction (special\_bonds 1 1 1) and RBCs (special\_bonds 0 0 0), the values can be specified by \textit{which-special-bond}. For \textit{which-special-bond} = 2, the values defined in the input file are taken.
+For \textit{which-special-bond} = 1 it is special\_bond 1 1 1 and for  \textit{which-special-bond} it is special\_bond 0 0 0.
+\underline{Note}: In the last two cases, the global values in the input file have to be set to a value $\in$ (0.0, 1.0) .
+If special\_bonds are set to 0.0 the pair interaction calculation is skipped and for special\_bonds set to 1.0, there is no possibility to distinguish between the three nearest neighbours and all other atoms, because in both cases it would be factor\_lj = 1.
+\\[2ex]
+Is \textbf{scale} specified, the cutoff the particle distance $r$ is compared to is $r_\mathrm{cutoff} = r_\mathrm{cutoff - specified}*{parameter}$.
+The \textit{parameter} has to be smaller than 1.
+To set the scale parameter is e.g., usefull if bond creation and/or breakage is wanted.
+The distance parameter in these fixes (bond/create, bond/break, bond/create/break) has to be smaller than the defined cutoff, by either cut-global or cut-local, because otherwise the neighbour lists would be wrong, which these fixes use.
+By setting a scale parameter, this cutoff for the neighbour list can be chosen larger, than the cut-off for the LJ interaction should be.
+\underline{Note}: By increasing the cutoff the computational time increases.
+\\[2ex]
+For the cases, where the atoms of different molecules should interact differently than the atoms of one molecule, by setting \textbf{molecule} the values for $\epsilon$, $\sigma$ and \textit{cut-local} the interaction between different molecules can be specified separately.
+One example are simulations with several polymers with attractive internal interactions between the monomers, where the attraction is not wanted between the monomers of different polymers.
+\underline{Note}: Here, cut-local has to be set, it is not optional. Here, the scale parameter does not change the cut-local value set.
+
+
+\subsection{pair\_sdpd\_full}\label{sec:pair/sdpd/full}
+
+Pair style for interactions by smoothed dissipative particle dynamics (SDPD) with angular momentum conservation.
+\\[2ex]
+Syntax:
+\\[1ex]
+pair\_style      sdpd/full $p_0$ $b$ $\alpha$ $T$ group\_sdpd $r_h$ seed group\_fixed $\left< \rho \right>$
+\\[1ex]
+pair\_coeff      id1 id2 $\rho_0$ $\eta$ $\zeta$
+
+\begin{itemize}
+\item $p_0$, $b$, $\alpha$, arguments for pressure equation of state \cref{eq:pressure}.
+\item $T$: temperature
+\item \textit{group\_sdpd}: group of all particles, which interact by sdpd. Said differently: all particles that should be included for calculation of the particle density $\rho$.
+\item $r_h$: cut-off or better said the smoothing length
+\item \textit{seed}: seed for random number
+\item \textit{group\_fixed}: group of e.g., border particles which do not move
+\item $\left< \rho \right>$ is a measured average particle density of the fluid.
+\item $\rho_0$: reference particle density
+\item $\eta$: dynamic viscosity
+\item $\zeta$: bulk viscosity
+\end{itemize}
+
+Example:
+\\[0.5ex]
+pair\_style      sdpd/full 100.0 -80.0 7 0.4 solvent+wall 1.5 8262 wall 3.05018
+\\[1ex]
+pair\_coeff      1 1 3.0 100.0 ?
+\\[2ex]
+Explanation:\\
+The force $\mathbf{f}_i$ on particle $i$ exerted by all other particles in radius $r_h$ around the particle 
+consist of different types of forces
+\begin{equation}
+\mathbf{f}_i = \sum_{j \neq i} \mathbf{F}^C_{ij} +\mathbf{F}^{D_T} + \mathbf{F}^{D_R} + \mathbf{ \tilde F}_{ij},
+\end{equation}
+with  $\mathbf{F}^C_{ij}$ the conservative force, $\mathbf{F}^{D_T}$ the translational and $\mathbf{F}^{D_R}$ the rotational dissipative forces, and $\mathbf{ \tilde F}_{ij}$ the random force , given by
+%
+\begin{align}\label{eq:sdpd_forces}
+\mathbf{F}^C_{ij} &= \left( \frac{p_i}{\rho_i^2} + \frac{p_j}{\rho_j^2} \right) F_{ij} \mathbf{r}_{ij}, \nonumber \\
+\mathbf{F}^{D_T}_{ij} &= -  \gamma_{ij}^a \left(  \mathbf{v}_{ij} + \frac{ \hat{\mathbf{e}}_{ij}  \left( \hat{\mathbf{e}}_{ij} \cdot \mathbf{v}_{ij} \right) }{3} \right)   - \frac{ 2 \gamma_{ij}^b }{3} \hat{\mathbf{e}}_{ij} \left( \hat{\mathbf{e}}_{ij} 
+ \cdot \mathbf{v}_{ij} \right),  \\ 
+\mathbf{F}^{D_R}_{ij} & = - \gamma_{ij}^a\frac{\mathbf{ r}_{ij}}{2}\times \left( {\boldsymbol {\omega}}_i+{\boldsymbol{\omega}}_j \right), \nonumber \\ 
+\mathbf{ \tilde F}_{ij} &=  \left(  \sigma_{ij}^{a} d\overline{\boldsymbol{\mathcal{W}}}_{ij}^S + \sigma_{ij}^{b} 
+\frac{1}{3}tr[d\boldsymbol{\mathcal{W}}_{ij}] \mathds{1} \right) \cdot \frac{\mathbf{\hat e}_{ij}}{dt}, \nonumber
+\end{align}
+where $p$ is the pressure, $\rho$ is the particle density, $F_{ij}$ calculated from the kernel function $W_{ij}$ (here the Lucy function) as $\nabla_i W_{ij} = -{\mathbf r}_{ij}F_{ij}$  ,$\text{tr}[d\boldsymbol{\mathcal{ W}}_{ij}]$ is the trace of a matrix of independent Wiener increments, 
+$d \overline{\boldsymbol{\mathcal{W}}}^{S}_{ij} = d \boldsymbol{\mathcal{W}}^S_{ij} - \text{tr}[d\boldsymbol{\mathcal{W}}_{ij}]\mathds{1}/3$ is the traceless symmetric part.\\
+The particle density is given by
+%
+\begin{equation}\label{eq:rho}
+	\rho_i = \sum_j m_j W_{ij}. 
+\end{equation}
+The friction coefficients are given by
+%
+\begin{equation} 
+	\gamma_{ij}^a = \left( \frac{20\eta}{3}-4\zeta \right)\frac{F_{ij}}{\rho_i\rho_j}, \quad \gamma_{ij}^b = \left( 17\zeta - \frac{40\eta}{3} \right)\frac{F_{ij}}{\rho_i\rho_j},
+\end{equation}
+% 
+and with the random-force coefficient $\sigma_{ij}^{a,b} = 2\sqrt{k_BT\gamma_{ij}^{a,b}}$.
+It is important to note that these equations are only valid for $2\eta/3 \le \zeta \le 5\eta /3$, such that the friction coefficients $(\gamma_{ij}^a + 2\gamma_{ij}^b)/3$ and  $\gamma_{ij}^a$ are positive.\\
+%
+The pressure equation of state used here is
+\begin{equation}\label{eq:pressure}
+p = p_0 \left( \frac{\rho}{\rho_0} \right)^{\alpha} + b.
+\end{equation}
+For details see also Ref.~\cite{Mueller_SDPD_2015}.\\[2ex]
+Note:\\
+In order to use this pair-style the atom style has to be \textit{sdpd} and the integrator has to be \textit{nve/sdpd}.\\
+Furthermore, a \textbf{moment of inertia} has to be set in the input-file or the data-file for every particle type similar to the mass.
+
+
+\subsection{pair\_sdpd}\label{sec:pair/sdpd}
+
+Pair style for interactions by smoothed particle dynamics (SDPD) pair interaction with momentum conservation without taking the bulk viscosity into account as in Subsection \nameref{sec:pair/sdpd/full}.
+\\[2ex]
+Syntax:
+\\[1ex]
+pair\_style      sdpd $p_0$ $b$ $\alpha$ $T$ group\_sdpd $r_h$ seed group\_fixed $\left< \rho \right>$
+\\[1ex]
+pair\_coeff      id1 id2 $\rho_0$ $\eta$\\[2ex]
+For details of the parameters see the explanation of Subsection \nameref{sec:pair/sdpd/full}.\\[2ex]
+Example:
+\\[0.5ex]
+pair\_style      sdpd 100.0 -80.0 7 0.4 solvent+wall 1.5 8262 wall 3.05018
+\\[1ex]
+pair\_coeff      1 1 3.0 100.0
+\\[2ex]
+Explanation:\\
+The forces are the same as above but simplified such that we have one dissipative (random) parameter instead of two. 
+It is  
+\begin{align}\label{eq:singlep}
+	\gamma_{ij} = \gamma^a_{ij} &= \gamma^b_{ij} = \frac{20\eta}{7}\frac{F_{ij}}{\rho_i\rho_j}  \\
+  \sigma_{ij} = \sigma^a_{ij} &=\sigma^b_{ij} = 2\sqrt{k_BT\gamma_{ij}}. \nonumber
+\end{align}
+For details see also Ref.~\cite{Mueller_SDPD_2015}.\\[2ex]
+Note:\\
+In order to use this pair-style the atom style has to be \textit{sdpd} and the integrator has to be \textit{nve/sdpd}.\\ 
+Furthermore, a \textbf{moment of inertia} has to be set in the input-file or the data-file for every particle type similar to the mass.
+
+
+\subsection{pair\_sdpd\_no\_moment}\label{sec:pair/sdpd/nomoment}
+
+Pair style for smoothed dissipative particle dynamics (SDPD) without angular momentum conservation.
+Syntax:
+\\[1ex]
+pair\_style      sdpd/no/moment $p_0$ $b$ $\alpha$ $T$ group\_sdpd $r_h$ seed group\_fixed $\left< \rho \right>$
+\\[1ex]
+pair\_coeff      id1 id2 $\rho_0$ $\eta$\\[2ex]
+For details of the parameters see the explanation of pair/sdpd/full.\\[2ex]
+Example:
+\\[0.5ex]
+pair\_style      sdpd/no/moment 100.0 -80.0 7 0.4 solvent+wall 1.5 8262 wall 3.05018
+\\[1ex]
+pair\_coeff      1 1 3.0 100.0
+\\[2ex]
+Explanation:\\
+The forces are very similar to those in \cref{eq:sdpd_forces}; however, the rotational force contribution is excluded.
+The conservative force is kept the same, while the dissipative force assumes a coefficient
+\begin{equation}
+ \gamma_{ij} = 5\eta F_{ij}/(3\rho_i\rho_j)
+\end{equation}
+using the formulation with a single dissipative parameter as in \cref{eq:singlep}. See also Ref.~\cite{Espanol_SDPD_2003} for further information.\\[2ex]
+Note:\\
+This pair-style does \textbf{not} require as special atom-style or integrator.
+
+\section{set\_individ}
+
+
+\section{statistic}
+
+Calculation and output of statistics.
+\\[2ex]
+\underline{Syntax:}
+\\[1ex]
+statistic stat-name group-id cyl\_ind n1 n2 n3 stat\_start calc\_each dump\_each (c1 c2 c3 c4 c5 c6) fname
+
+\begin{itemize}
+\item \textit{stat-name}: name of the statistic which should be calculated, e.g., center-of-mass (com), velocity (vel). See a full list below.
+\item \textit{group-id}: id of group for which statistic should be calculated
+\item \textit{cyl\_ind}: $\textbf{0}$ for Cartesian coordinates, {\bfseries 1} for cylindrical coordinates.
+\item \textit{n1, n2, n3}: are the number of bins in the three directions: ($x$ $y$ $z$) or ($x$ $r$ $\theta$)
+\item \textit{stat\_start}: timepoint for which statistic calculation starts
+\item \textit{calc\_each}: calculation of statistic every this many timesteps
+\item \textit{dump\_each}: dump a file this many timesteps (first output will be after stat\_start+dump\_each)
+\item \textit{c1, c2, c3, c4, c5, c6}: coordinates for the region the statistic is calculated in. To set them is optional. If they are not set, global border domains are used. For details see below.
+\item \textit{fname}: output file name. The output looks mostly as: fname.timestep.plt
+\end{itemize}
+
+In \textbf{Cartesian coordinates}: c1 = $x_\mathrm{min}$, c2 = $x_\mathrm{max}$, c3 = $y_\mathrm{min}$, c4 = $y_\mathrm{max}$, c5 = $z_\mathrm{min} $ and c6 = $z_\mathrm{max}$.\\
+Only particles, which are located in the region from $x_\mathrm{min}$ to $x_\mathrm{max}$ etc. the statistic will be calculated, besides some exceptions.
+If they are not set the global border domains are used.
+\\[2ex]
+In \textbf{cylinder coordinates}: c1 = $x_{min}$, c2 = $x_{max}$, c3 = $y_0$, c4 = $r$, c5 = $z_0$ , c6.\\
+$(y_O, z_0)$ is the center of the cylinder and $r$ the radius, thus the cylinder has to be in x-direction.
+The parameter c6 is additionally used to distinguish different ways of handling the cylindrical coordinates for some cases.
+See, the descriptions of the individual statistics for details and for examples.
+
+
+\subsection{statistic\_com}
+
+Name: {\bfseries com}\\[2ex]
+Example for RBCs in a cylinder:\\[0.5ex]
+statistic       com rbc 1 1 250 1 100000 1 100000 0.0 80.2141 0.0 10.0 0.0 0.1 center\_rbc
+\\[2ex]
+Calculates the center-of-mass (COM) probability distribution for molecules in the specified grid.
+Furthermore, the second power of the radius of gyration in all directions and the 3D radius of gyration, the COM velocities in all directions, and the forces in all directions on the COM are calculated (averaged) in the specified grid.
+The atoms have to belong to a \textbf{molecule}.
+\\[2ex]
+Is cyl\_ind = 1 and c6 $\le$ 0.5 the statistic calculation of second power of the radius of gyration, the velocity, and the force is done for Cartesian coordinates (e.g., $f_x$, $f_y$, $f_z$).\\
+Is cyl\_end = 1 and c6 $>$ 0.5 the statistic calculation of second power of the radius of gyration, the velocity, and the force is done in cylinder coordinates (e.g., $f_x$, $f_r$, $f_{\theta}$).
+\\[2ex]
+The output file contains {\bfseries 14} rows.
+The first three rows of the output file are the coordinates, either $x$, $y$, $z$ for cyl\_ind = 0 or $x$, $r$, $\theta$ for cyl\_ind = 1 (independent of c6).
+The fourth row contains the probability of the com location at the corresponding coordinate (center\_mass), the next 4 rows contain the square of the radius of gyration in all three directions (Rgx2, Rgy2, Rgz2) and the 3D one (Rg2 = Rgx2+Rgy2+Rgz2), the next three rows contain the COM velocity (Vcx, Vcy, Vcz) and the last three rows the force on the COM (Fx, Fy, Fz).
+
+
+\subsection{statistic\_com\_time}
+
+Name: {\bfseries com/time}\\[2ex]
+Example:\\[0.5ex]
+statistic       com/time plat 0 1 1 1 100000 1 100 0.0 80.2141 0.0 10.0 0.0 0.1 com\_time
+\\[2ex]
+Calculation of the average of the center-of-mass (COM) position and the COM velocity for molecules of the specified group.
+The specified grid is ignored here.
+\\[2ex]
+The output are either in Cartesian ($x$, $y$, $z$, $v_x$, $v_y$, $v_z$) or cylinder coordinates ($x$, $r$, $\theta$, $v_x$, $v_r$, $v_{\theta}$) depending on \textit{cyl\_ind}.
+\\[2ex]
+The number of rows in the output file depends on the number of molecules. 
+The first row of the output file is the time of output.
+For every molecule, which belongs to the defined group 6 rows follow.
+The first 3 rows are the COM position (comx, comy, comz) and the following 3 rows contain the com velocity (com\_velx, com\_vely, com\_velz) in the specified coordinates.
+The data is not written to several files, but to the same file.
+\\[2ex]
+Note: The time between different outputs should not be too large, otherwise this measurement is useless.
+Furthermore, depending on the number of particles and the number of outputs the usage of this statistic might be more time consuming than to dump the data more often and to calculate the positions and velocities from the dump file.
+
+
+\subsection{statistic\_corr}
+
+Name: {\bfseries corr}
+\\[2ex]
+Calculates the position correlation function.
+\\[2ex]
+\underline{Syntax:}\\
+statistic	corr group cyl\_ind n\_x n\_y calc\_each start\_time dummy dump\_each filename
+\begin{itemize}
+\item n\_y $\approx$ \#time-lags
+\item n\_z exchanged by calc\_each: calculation of statistic every this many timesteps
+\end{itemize} 
+Here, just Cartesian coordinates are taken into account; cyl\_ind = 0 automatically.
+The specified grid is ignored here.
+\\[2ex]
+The output file contains {\bfseries nx + 1} rows.
+The fist row is the time-lag and the next rows the time-dependent position correlation function.
+
+
+\subsection{statistic\_dens}
+
+Name: {\bfseries dens}
+\\[2ex]
+Example:\\[0.5ex]
+statistic       dens sol 1 1 250 1 100000 1 100000 0.0 80.2141 0.0 10.0 0.0 0.1 dens
+\\[2ex]
+Calculates the average of the number density and the mass density for the given atom group on the specified grid.
+\\[2ex]
+The output file contains {\bfseries 5} rows.
+The first three rows of the output file are the coordinates, either $x$, $y$, $z$ for \textit{cyl\_ind} = 0 or $x$, $r$, $\theta$ for \textit{cyl\_ind} = 1 (independent of \textit{c6}).
+The value of \textit{c6} is ignored.
+The fourth row contains the number density and the last row contains the mass density.
+
+
+\subsection{statistic\_e}
+
+Name: {\bfseries e}
+\\[2ex]
+Measures the average internal temperature of the particles in the specified atom group on the specified grid.
+Note: This statistic can only be used in combination with \textbf{pair\_dpd\_thermal}.
+\\[2ex]
+The Output consists of {\bfseries 4} rows.
+The first three rows of the output file are the coordinates, either $x$, $y$, $z$ for \textit{cyl\_ind} = 0 or $x$, $r$, $\theta$ for \textit{cyl\_ind} = 1 (independent of \textit{c6}).
+The value of \textit{c6} is ignored.
+The fourth row is the averaged temperature. 
+
+
+\subsection{statistic\_extension}
+
+Name: {\bfseries extension}
+\\[2ex]
+Example:
+\\[0.5ex]
+statistic       extension vwf 0 1 1 1 100000 1 100 0.0 80.2141 -10.0 10.0 -10.0 10.0 ext
+\\[2ex]
+The (average) extension $R_s = \mathrm{MAX} - \mathrm{MIN}$ of a molecule, the difference between the largest and the smallest position of the particles that belong to one molecule, is measured for all three directions.
+Here, just Cartesian coordinates are taken into account, \textit{cyl\_ind = 0} automatically.
+The specified grid is ignored here.
+\\[2ex]
+The number of rows in the output file depends on the number of molecules.
+The first row is always the current simulation time.
+Then for every molecule 6 rows follow.
+The first three of these are the current extensions in all three directions
+The following three rows are the averaged extension over the specified time.
+Here, the data is constantly written to the same file.
+The last three rows are the averaged extension of all molecules.
+\\[2ex]
+Note: The usage of this statistic might be more time consuming than to dump the data more often and to calculate the extension from the dump-file.
+
+
+\subsection{statistic\_force}
+
+Name: {\bfseries force}
+\\[2ex]
+Calculates the average force for all three directions on atoms of the specified group on the specified grid.
+\\[2ex]
+Here, if cyl\_ind = 1 and c6 $\le$ 0.5 the calculation of the force is done for Cartesian coordinates ($f_x$, $f_y$, $f_z$).
+Is cyl\_end = 1 and c6 $>$ 0.5 the calculation of the force is done in cylinder coordinates ($f_x$, $f_r$, $f_{\theta}$).
+\\[2ex]
+The output file contains {\bfseries 6} rows.
+The first three rows of the output file are the coordinates, either $x$, $y$, $z$ for cyl\_ind = 0 or $x$, $r$, $\theta$ for cyl\_ind = 1 (independent of c6).
+The last three rows contain the forces for the three directions.
+
+
+\subsection{statistic\_gyro}
+
+Name: {\bfseries gyro}\\[2ex]
+Example\\[0.5ex]
+statistic       extension vwf 0 1 1 1 1 1 100 0.0 10.0 0.0 8.0 0.0 8.0 ext
+\\[2ex]
+Calculates the second power of the radius of gyration $R_g$ of a molecules.
+Here, just Cartesian coordinates are taken into account; cyl\_ind = 0 automatically.
+The specified grid is ignored here.
+\\[2ex]
+The radius of gyration is defined as
+%
+\begin{equation}
+ R_g = \sqrt{\frac{1}{2N^2}\sum_{i,j}(\vec{r}_j-\vec{r}_j)^2}
+\end{equation}
+%
+with $N$ the number of monomers and $\vec{r}_i$ the position of monomer $i$.
+\\[2ex]
+The number of rows in the output file depends on the number of molecules.
+The first row is always the current simulation time.
+Then for every molecule 4 rows follow.
+The first three of these are the second power of the radius of gyration in all three directions (Rgx, Rgy, Rgz).
+The next row is the second power of the 3D radius of gyration (Rgx + Rgy + Rgz).
+The last 4 rows are always the average over all molecules of the second power of radius of gyration.
+Here, the data is constantly written to the same file.
+
+
+\subsection{statistic\_msd}\label{ssec:stat_msd}
+
+Name: {\bfseries msd}
+\\[2ex]
+
+\textbf{Syntax:}\
+\\[0.5ex]
+statistic	msd group cyl\_ind calc\_each n\_y dummy start\_time dummy dump\_each filename
+\begin{itemize}
+\item n\_x exchanged by calc\_each: calculation of statistic every this many timesteps
+\item n\_y $\approx$ \#time-lags
+\end{itemize} 
+\textbf{Example:}
+\\[0.5ex]
+statistic rbc 0 10000 200 66 1000 666 6000000
+\\[2ex]
+\textbf{Description:}
+\\[0.5ex]
+Calculates the \textbf{m}ean \textbf{s}quared \textbf{d}isplacement (MSD) of the center of mass (COM).
+\\[2ex]
+Here, just Cartesian coordinates are taken into account; cyl\_ind = 0 automatically.
+The specified grid is ignored here.\\
+The MSD is calculated as
+%
+\begin{equation}
+\mathrm{MSD} = \left \langle \left ( \vec{r}_\mathrm{CM}(t_0 + t) - \vec{r}_\mathrm{CM}(t_0) \right ) ^2 \right \rangle _{t_0},
+\label{eq:MSD}
+\end{equation}
+%
+with $r_\mathrm{CM}$ the COM position.
+\\[2ex]
+This module employs
+%
+\begin{itemize}
+\item an average over all $t_0$, meaning all pairs of COM-coordinates that have equal time lags (= delays) $t$ (so short time lags are intrinsically better sampled)
+\item on top of that, an exponential mapping of time lags: more values for shorter time lags
+\item circular arrays: arrays that, once they have reached their last element, store the next values from the beginning onwards (see the modulo operator \%)
+\end{itemize}
+%
+In the first stage of this function, it 'collects' sufficient data (the center of mass positions at certain time steps) and in the second stage, the correlations are calculated. After enough data has been collected, the function replaces sequentially the values within the circular arrays, so everytime, new correlations can be calculated.
+\\[2ex]
+Note: \cref{eq:MSD} can be analyzed to obtain the type of motion: for short time lags $t$, numerical motion is ballistic and $\mathrm{MSD} \propto t^2$.
+For larger time lags, in case of pure diffusion, \cref{eq:MSD} is linearly dependent on $t$ and the translational diffusion coefficient can be fitted.
+For the post-processing: The transition time \textit{ballistic} $\longrightarrow$ \textit{diffusive} can be obtained by using double logarithmic scale and one linear and one quadratic fit function.:
+%
+\begin{equation}
+\mathrm{MSD} = 6 \cdot D_{\mathrm{trans}} \cdot t
+\label{MSD_diffusion}
+\end{equation}
+%
+The factor of 6 for the case of 3 dimensions.
+\\[2ex]
+The output file contains {\bfseries 2} rows.
+The fist row is the time-lag and the second the time-dependent MSD.
+
+\subsection{statistic\_rho}
+
+Name: {\bfseries rho}
+\\[2ex]
+Example\\[0.5ex]
+statistic       rho nocell 1 1 250 1 100000 1 100000 0.0 80.2141 0.0 10.0 0.0 0.1 rho
+\\[2ex]
+Calculates the average of the particle density $\rho$ on the specified grid.
+See \cref{eq:rho} for the definition of $\rho$.
+\\[2ex]
+The output file contains {\bfseries 4} rows.
+The first three rows of the output file are the coordinates, either $x$, $y$, $z$ for cyl\_ind = 0 or $x$, $r$, $\theta$ for cyl\_ind = 1 (independent of c6).
+The fourth row contains $\rho$.
+\\[2ex]
+Note:\\
+This function can only be used for simulations with the pair interaction sdpd/full, sdpd, or sdpd/no/moment.
+
+
+\subsection{statistic\_stress}
+
+Name: {\bfseries stress}
+
+Calculates the average stress tensor for the specified grid.
+Here, just Cartesian coordinates are taken into account; cyl\_ind = 0 automatically.
+\\[2ex]
+The statistic outputs either 2 or 4 files.
+The latter is the case, if the given group is connected by bonds, angles, or dihedrals.\\
+The output files contain {\bfseries 15} rows.
+The first output file is \glqq atom1\_fname.timestep.plt\grqq.
+The second output file is \glqq atom2\_fname.timestep.plt\grqq.
+The third output file is \glqq poly1\_fname.timestep.plt\grqq.
+The fourth output file is \glqq poly2\_fname.timestep.plt\grqq.
+The first three rows of the output file are the coordinates $x$, $y$, $z$.
+The next 6 rows are the entries of the first tensor.
+The next 6 rows are the entries of the second tensor.
+
+
+\subsection{statistic\_vcorr}
+
+Name: {\bfseries vcorr}
+\\[2ex]
+Calculates the velocity correlation function of the center-of-mass velocity of the given group.
+\\[2ex]
+\underline{Syntax:}\\
+statistic	corr group cyl\_ind calc\_each n\_y dummy start\_time dummy dump\_each filename
+\begin{itemize}
+\item n\_x exchanged by calc\_each: calculation of statistic every this many timesteps
+\item n\_y $\approx$ \#time-lags
+\end{itemize} 
+Here, just Cartesian coordinates are taken into account; cyl\_ind = 0 automatically.
+The specified grid is ignored.\\
+The correlation is calculated as
+\begin{equation}
+\mathrm{vcorr} = \left \langle \vec{v}(t_0 + t) \vec{v}(t_0)  \right \rangle _{t_0},
+\label{eq:vcorr}
+\end{equation}
+\\[2ex]
+The output file contains {\bfseries 2} rows.
+The fist row is the time-lag and the second row the time-dependent velocity correlation function.
+\\[2ex]
+See also: Subsection \nameref{ssec:stat_msd}
+
+
+\subsection{statistic\_vel}
+
+Name: {\bfseries vel}
+\\[2ex]
+Example:
+\\[0.5ex]
+statistic       vel sol 0 1 600 1 10 1 100000 0.0 10.0 0.0 8.0 0.0 8.0 vel
+\\[2ex]
+Calculates the average of the velocity in all directions on the specified grid for the given atom group.
+\\[2ex]
+Is cyl\_ind = 1 and c6 $\le$ 0.5 the statistic calculation is done for Cartesian coordinates ($v_x$, $v_y$, $v_z$).
+Is cyl\_end = 1 and c6 $>$ 0.5 the statistic calculation is done in cylinder coordinates ($v_x$, $v_r$, $v_{\theta}$).
+\\[2ex]
+The output file contains {\bfseries 6} rows.
+The first three rows of the output file are the coordinates, either $x$, $y$, $z$ for cyl\_ind = 0 or $x$, $r$, $\theta$ for cyl\_ind = 1 (independent of c6).
+The next three rows contain the averaged velocities (v\_x, v\_y, v\_z).
+
+
+\section{COPY}
+
+Here we have some files that are not needed ad the moments but are there
+
+\subsection{single\_triangle}
+
+\subsection{statistic\_DLS}
+
+Calculates the \textbf{d}ynamic \textbf{l}ight \textbf{s}cattering.
+
+Based on statistic\_SLS, this module calculates the correlation function of the scattering amplitudes in a similar fashion like statistic\_msd:
+%
+\begin{equation}
+S(\vec{q}, t) = < A(\vec{q},t_0)A^*(\vec{q},t_0+t) >_{t_0}
+\label{eq:DLS}
+\end{equation}
+%
+This module employs
+%
+\begin{itemize}
+\item an average over all $t_0$, meaning all pairs of scattering amplitudes that have equal time lags (= delays) $t$ (so short time lags are intrinsically better sampled)
+\item an average over orientations of $\vec{q} = \vec{k}_{in} - \vec{k}_{s}$, which have to be supplied in an external file. This file shall be named \textit{q\_orientations.dat} and contain the number of vectors (first line) and sequentially, the three coordinates of each vector in each line.
+\item linear mapping of time lags (in contrast to statistic\_msd)
+\end{itemize}
+%
+It is possible to continue another \textit{LAMMPS} run with the data already calculated by choosing the input parameter output\_ind $\neq 0$. In the case output\_ind$=1$, output files are generated; in the case output\_ind$>1$, output files are both read in and generated. If neither shall be used, set output\_ind$=0$.
+
+The output is structured as follows: time lag t \quad q-magnitude \quad $\mathfrak{R} (S)$ \quad $\mathfrak{I} (S)$.
+
+\underline{Syntax:} statistic	DLS group cyl\_ind calc\_each \#time-lags n\_q\_mag start\_time output\_ind dump\_each filename
+
+
+\subsection{statistic\_SLS}
+
+Calculates the \textbf{s}tatic \textbf{l}ight \textbf{s}cattering on triangulated objects. The theoretical basis is the Rayleigh Gans Debye - approximation. Multiple scattering is neglected as well as special considerations of dielectric constants. The quantity output is the complex bulk scattering amplitude:
+%
+\begin{equation}
+\label{eq:SLS}
+A_b(\vec{q})=\int_V e^{i\vec{q} \cdot \vec{r}} dV
+\end{equation}
+%
+alongside the magnitude of the momentum transfer vector $\vec{q} = \vec{k}_{in} - \vec{k}_{s}$. In case of non-spherical particles, changing the orientation of $\vec{q}$ leads to a different course of $A_b(q)$.
+
+This module employs
+%
+\begin{itemize}
+\item the module \textit{single\_triangle.cpp} which calculates the scattering amplitude of one triangle and according to $\vec{q}$
+\item circular arrays: arrays that, once they have reached their last element, store the next values from the beginning onwards (see the modulo operator \%)
+\item MPI-parallelisation for the contributions of the different triangles
+\end{itemize}
+%
+The maximum value for the magnitude of the momentum transfer vector $\vec{q}$, $q_{max}$, is calculated such that $q_{max} \cdot l_0 = 2 \pi$, with $l_0$ being the smallest length scale of the object\footnote{As exclusively triangulated objects are permitted, $l_0$ is the average triangle length.}. The number of different magnitudes for $\vec{q}$, $n_{q-mag}$, is input (see below). With these values, the difference of adjacent $|\vec{q}|$s is calculated.
+
+\underline{Syntax:} statistic	SLS group cyl\_ind calc\_each \#time-lags n\_q\_mag start\_time dummy dump\_each filename
+
+\section{vector}
+
+
+\section{MAKE/MINE}
+
+
+\section{USER-SDPD}
+
+% ? Dmitry?\\
+% ?What is importan?
+
+
+% \subsubsection{Other}
+% 
+% [atom\_vec\_individual.cpp, atom\_vec\_individual.h but not used, stored in OLD\_FILES/]

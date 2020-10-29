@@ -1,0 +1,530 @@
+/* ----------------------------------------------------------------------
+   LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
+   www.cs.sandia.gov/~sjplimp/lammps.html
+   Steve Plimpton, sjplimp@sandia.gov, Sandia National Laboratories
+
+   Copyright (2003) Sandia Corporation.  Under the terms of Contract
+   DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
+   certain rights in this software.  This software is distributed under 
+   the GNU General Public License.
+
+   See the README file in the top-level LAMMPS directory.
+------------------------------------------------------------------------- */
+
+// 2D area bond potential
+
+#include "math.h"
+#include "stdlib.h"
+#include "string.h"
+#include "bond_area_harmonic_visc.h"
+#include "atom.h"
+#include "neighbor.h"
+#include "domain.h"
+#include "comm.h"
+#include "update.h"
+#include "output.h"
+#include "statistic.h"
+#include "force.h"
+#include "memory.h"
+#include "error.h"
+#include "MersenneTwister.h"
+
+using namespace LAMMPS_NS;
+
+/* ---------------------------------------------------------------------- */
+
+BondArea_Harmonic_VISC::BondArea_Harmonic_VISC(LAMMPS *lmp) : Bond(lmp) 
+{
+  mtrand = NULL;
+  num_steps = 0;
+  n_dist = 100;
+  write_each = 100000;
+  active_ind = 0;
+  n_substeps = 1;
+}
+
+/* ----------------------------------------------------------------------
+   free all arrays 
+------------------------------------------------------------------------- */
+
+BondArea_Harmonic_VISC::~BondArea_Harmonic_VISC()
+{
+  if (allocated) {
+    memory->sfree(setflag);
+    memory->sfree(ks);
+    memory->sfree(kl);
+    memory->sfree(circum);
+    memory->sfree(ka);
+    memory->sfree(area);
+    memory->sfree(temp);
+    memory->sfree(gamc);
+    memory->sfree(gamt);
+    memory->sfree(sigc);
+    memory->sfree(sigt);
+    memory->sfree(ks_factor);
+    memory->sfree(active_sp_dist);
+  }
+
+#ifdef MTRAND
+  if (mtrand) delete mtrand;
+#endif
+}
+
+/* ---------------------------------------------------------------------- */
+
+void BondArea_Harmonic_VISC::compute(int eflag, int vflag)
+{
+  int i1,i2,n,m,type,factor,k,l,j,ind;
+  double rsq,r,rfactor,l0,aa,en_s;
+  double dvx, dvy, dvz;
+  double coefa,vv,k_on,k_off,lam,randnum;
+  int nm = atom->n_mol;
+  double dath[2*nm],datt[2*nm],xx1[3],xx2[3];
+  double fbond, ebond, fr[3];
+  double **xx = NULL;
+  double **fa = NULL;
+  int n_stress = output->n_stress;
+  double ff[6];
+  memory->create(fa,2,2,"bond_area_wlc_pow_visc:fa");
+  memory->create(xx,2,3,"bond_area_wlc_pow_visc:fa");
+  int nb = atom->nbonds;   
+  double ks_h[nb];
+  double dt = update->dt;
+  double dtt = dt/n_substeps;
+  double shift = sqrt(3.0);
+
+  if (active_ind)
+    for (n = 0; n < nb; n++)
+      ks_h[n] = -9999;
+
+  ebond = 0.0;
+  eng_vdwl = 0.0;
+  if(eflag || vflag) ev_setup(eflag, vflag);
+  else evflag = 0;
+
+  for (n = 0; n < 2*nm; n++){
+    dath[n] = 0.0;
+    datt[n] = 0.0;   
+  }
+
+  double **x = atom->x;
+  double **v = atom->v;
+  double **f = atom->f;
+  int *tag = atom->tag;
+  int *n_atoms = atom->atoms_in_mol;
+  int **bondlist = neighbor->bondlist;
+  int nbondlist = neighbor->nbondlist;
+  double *bondlist_length = neighbor->bondlist_length; 
+  int nlocal = atom->nlocal;
+  int newton_bond = force->newton_bond;
+
+  for (n = 0; n < nbondlist; n++) {
+    
+    i1 = bondlist[n][0];
+    i2 = bondlist[n][1];
+    m = atom->molecule[i1]-1;
+
+    domain->unmap(x[i1],atom->image[i1],xx1);
+    domain->unmap(x[i2],atom->image[i2],xx2);    
+
+    aa = 0.5*(xx1[0]*xx2[1] - xx2[0]*xx1[1]);
+    dath[m + nm] += aa;
+    dath[m] += sqrt((xx2[0]-xx1[0])*(xx2[0]-xx1[0]) + (xx2[1]-xx1[1])*(xx2[1]-xx1[1]));
+  }
+  MPI_Allreduce(&dath[0],&datt[0],2*nm,MPI_DOUBLE,MPI_SUM,world);
+
+  for (n = 0; n < nbondlist; n++) {
+    
+    i1 = bondlist[n][0];
+    i2 = bondlist[n][1];
+    type = bondlist[n][2];
+    l0 = bondlist_length[n]*spring_scale;
+    m = atom->molecule[i1]-1;
+
+    if (newton_bond) factor = 2;
+    else {
+      factor = 0;
+      if (i1 < nlocal) factor++;
+      if (i2 < nlocal) factor++;
+    }
+    rfactor = 0.5 * factor;
+
+    delx = x[i1][0] - x[i2][0];
+    dely = x[i1][1] - x[i2][1];
+    delz = x[i1][2] - x[i2][2];
+    dvx = v[i1][0] - v[i2][0];
+    dvy = v[i1][1] - v[i2][1];
+    dvz = v[i1][2] - v[i2][2];
+
+    rsq = delx*delx + dely*dely + delz*delz;
+    r = sqrt(rsq);  
+
+    // force & energy
+    //generate_wrr();
+#ifdef MTRAND
+    wrr[0] = sqrt(0.5*(delx*delx/rsq + 3.0))*(2.0*mtrand->rand()-1.0);
+    wrr[1] = sqrt(0.5*(dely*dely/rsq + 3.0))*(2.0*mtrand->rand()-1.0);
+    wrr[2] = sqrt(0.5*(delz*delz/rsq + 3.0))*(2.0*mtrand->rand()-1.0);
+    wrr[3] = 2.0*mtrand->rand()-1.0;
+#else
+    wrr[0] = sqrt(0.5*(delx*delx/rsq + 3.0))*(2.0*drand48()-1.0);
+    wrr[1] = sqrt(0.5*(dely*dely/rsq + 3.0))*(2.0*drand48()-1.0);
+    wrr[2] = sqrt(0.5*(delz*delz/rsq + 3.0))*(2.0*drand48()-1.0);
+    wrr[3] = 2.0*drand48()-1.0;
+#endif
+
+    if (active_ind){
+      j = tag[i1] - atom_start; 
+      fbond = - ks[type]*(r - l0);
+      en_s = 0.5*ks_factor[j]*ks[type]*(r - l0)*(r - l0);
+      k_on = k20*(1.0 + theta*exp((eb+dmu_atp)/temp[type]))*exp(-en_s/temp[type]);
+      k_off = k20*(theta + exp(-eb/temp[type]));
+      lam = 2.0*(k_on*k_off + k20*k20*theta*exp(-en_s/temp[type])*(1.0-exp(dmu_atp/temp[type])))/(k_on + k_off)/nb;
+      //lam = 0.0;
+      for (k = 0; k < n_substeps; k++){ 
+#ifdef MTRAND
+        randnum = shift*(2.0*mtrand->rand()-1.0);
+#else
+        randnum = shift*(2.0*drand48()-1.0);
+#endif
+        ks_h[j] = ks_factor[j] + dtt*(k_on*(1.0-ks_factor[j]) - k_off*ks_factor[j]) + sqrt(dtt*lam)*randnum;
+        ks_factor[j] =  ks_h[j];
+      }
+      if (ks_h[j] < 0.1){ 
+        ks_h[j] = 0.1;  
+        //error->warning(FLERR,"The local fraction of attachement is less than 0.1!");
+      }
+      if (ks_h[j] > 1.0){
+        ks_h[j] = 1.0;  
+        //error->warning(FLERR,"The local fraction of attachement is greater than one!");
+      }   
+      fbond *= ks_h[j]/r;
+      ks_factor[j] = 0.0;
+    } else{
+      fbond = - ks[type]*(r - l0)/r;
+    }
+    fbond -= kl[type]*(datt[m] - circum[type])/r;
+
+    if (eflag)
+      ebond = 0.5*ks[type]*(r-l0)*(r-l0);
+
+    domain->unmap(x[i1],atom->image[i1],xx[0]);
+    domain->unmap(x[i2],atom->image[i2],xx[1]);
+
+    coefa = 0.5*ka[type]*(datt[m + nm]-area[type]);
+    fa[0][0] = -coefa*xx[1][1];
+    fa[0][1] = coefa*xx[1][0];
+    fa[1][0] = -coefa*xx[0][1];
+    fa[1][1] = coefa*xx[0][0];
+
+    fr[0] = sigt[type]*wrr[0] - gamt[type]*dvx;
+    fr[1] = sigt[type]*wrr[1] - gamt[type]*dvy;
+    fr[2] = sigt[type]*wrr[2] - gamt[type]*dvz;
+    //fr[0] = sigt[type]*wrr[0]/ra - gamt[type]*dvx;  // use with generate_wrr();
+    //fr[1] = sigt[type]*wrr[1]/ra - gamt[type]*dvy;  // use with generate_wrr();
+    //fr[2] = sigt[type]*wrr[2]/ra - gamt[type]*dvz;  // use with generate_wrr();
+
+    // apply force to each of 2 atoms
+
+    if (newton_bond || i1 < nlocal) {
+      f[i1][0] += delx*fbond + fa[0][0] + fr[0];
+      f[i1][1] += dely*fbond + fa[0][1] + fr[1];
+      f[i1][2] += delz*fbond + fr[2];
+    }
+
+    if (newton_bond || i2 < nlocal) {
+      f[i2][0] -= delx*fbond + fa[1][0] + fr[0];
+      f[i2][1] -= dely*fbond + fa[1][1] + fr[1];
+      f[i2][2] -= delz*fbond + fr[2];
+    }
+
+    if (evflag) {
+      vv = coefa*datt[m + nm]/2.0/n_atoms[m];
+      ev_tally3(i1,i2,nlocal,newton_bond,ebond,fa,fr,fbond,vv,xx,delx,dely,delz);
+    }
+
+    // virial contribution
+    
+    if (n_stress){
+      vv = coefa*datt[m + nm]/2.0/n_atoms[m];
+      ff[0] = delx*(delx*fbond + fr[0]) - 0.5*(fa[1][0]+fa[0][0])*(xx[1][0]-xx[0][0]) - vv;
+      ff[1] = dely*(dely*fbond + fr[1]) - 0.5*(fa[1][1]+fa[0][1])*(xx[1][1]-xx[0][1]) - vv;
+      ff[2] = delz*(delz*fbond + fr[2]);
+      ff[3] = delx*(dely*fbond + fr[1]) - 0.5*(fa[1][1]+fa[0][1])*(xx[1][0]-xx[0][0]);
+      ff[4] = delx*(delz*fbond + fr[2]);
+      ff[5] = dely*(delz*fbond + fr[2]);
+      for (k = 0; k < n_stress; k++){
+        l = output->stress_id[k];
+        if ((output->next_stat_calc[l] == update->ntimestep) && (output->last_stat_calc[l] != update->ntimestep))
+          output->stat[l]->virial3(i1,i2,ff);
+      }
+    }
+  }
+
+  if (active_ind){
+    MPI_Allreduce(&ks_h[0],ks_factor,nb,MPI_DOUBLE,MPI_MAX,world);
+
+    if (comm->me == 0){
+
+      if (update->ntimestep > step_start){
+        num_steps++;  
+        for (n = 0; n < nb; n++)
+          if (ks_factor[n] >= 0.0 && ks_factor[n] < 1.0){
+            j = static_cast<int> (ks_factor[n]*n_dist);
+            active_sp_dist[j]++;  
+          }   
+ 
+        if ((update->ntimestep-step_start)%write_each == 0){
+          FILE* out_stat;
+          char f_name[FILENAME_MAX];
+         
+          if (num_steps){ 
+            sprintf(f_name,"active_sp_dist.dat");
+            out_stat=fopen(f_name,"w");
+            for (n = 0; n < n_dist; n++)
+              fprintf(out_stat,"%f %15.10lf \n",(n+0.5)/n_dist,static_cast<double>(active_sp_dist[n])/num_steps/nb);
+            fclose(out_stat);
+          }
+        } 
+      } 
+    }
+  }
+  memory->destroy(fa);
+  memory->destroy(xx);
+}
+
+/* ---------------------------------------------------------------------- */
+
+void BondArea_Harmonic_VISC::allocate()
+{
+  int i;
+  allocated = 1;
+  int n = atom->nbondtypes;
+  int seed = 23;
+  short unsigned seed1;
+  long unsigned int seed2;
+
+  seed +=  comm->me;
+#ifdef MTRAND
+  if (mtrand) delete mtrand;
+  seed2 = static_cast<long unsigned int>(seed);
+  mtrand = new MTRand(&seed2);
+  //mtrand = new MTRand();
+#else
+  seed1 = static_cast<unsigned short>(seed);
+  seed48(&seed1);
+#endif
+
+  int individual = atom->individual;
+  if(individual == 0)
+    error->all(FLERR,"Individual has wrong value or is not set! Using bond area/harmonic/visc is only possible with individual = 1.");
+
+  ks = (double *) memory->smalloc((n+1)*sizeof(double),"bond:ks");
+  kl = (double *) memory->smalloc((n+1)*sizeof(double),"bond:kl");
+  circum = (double *) memory->smalloc((n+1)*sizeof(double),"bond:circum");
+  ka = (double *) memory->smalloc((n+1)*sizeof(double),"bond:ka");
+  area = (double *) memory->smalloc((n+1)*sizeof(double),"bond:area");
+  temp = (double *) memory->smalloc((n+1)*sizeof(double),"bond:temp");
+  gamc = (double *) memory->smalloc((n+1)*sizeof(double),"bond:gamc");
+  gamt = (double *) memory->smalloc((n+1)*sizeof(double),"bond:gamt");
+  sigc = (double *) memory->smalloc((n+1)*sizeof(double),"bond:sigc");
+  sigt = (double *) memory->smalloc((n+1)*sizeof(double),"bond:sigt");
+
+  setflag = (int *) memory->smalloc((n+1)*sizeof(int),"bond:setflag");
+  for (i = 1; i < n; i++) setflag[i] = 0;
+
+  n = atom->nbonds; 
+  ks_factor = (double *) memory->smalloc(n*sizeof(double),"bond:ks_factor");
+  for (i = 0; i <= n; i++) ks_factor[i] = 1.0;
+
+  active_sp_dist = (int *) memory->smalloc(n_dist*sizeof(int),"bond:active_sp_dist");
+  for (i = 0; i < n_dist; i++) active_sp_dist[i] = 0;
+}
+
+/* ----------------------------------------------------------------------
+   set coeffs from one line in input script
+------------------------------------------------------------------------- */
+
+void BondArea_Harmonic_VISC::coeff(int narg, char **arg)
+{
+  if (narg != 18) error->all(FLERR,"Incorrect args in bond_coeff command");
+  if (!allocated) allocate();
+
+  int ilo,ihi;
+  force->bounds(arg[0],atom->nbondtypes,ilo,ihi);
+
+  double ks_one = force->numeric(FLERR,arg[1]);
+  double kl_one = force->numeric(FLERR,arg[2]);
+  double circum_one = force->numeric(FLERR,arg[3]);
+  double ka_one = force->numeric(FLERR,arg[4]);
+  double area_one = force->numeric(FLERR,arg[5]);
+  double temp_one = force->numeric(FLERR,arg[6]);
+  double gamc_one = force->numeric(FLERR,arg[7]);
+  double gamt_one = force->numeric(FLERR,arg[8]);
+  double spring_scale_one = atof(arg[9]);
+  int active_ind_one = atoi(arg[10]);
+  double k20_one = atof(arg[11]);
+  double theta_one = atof(arg[12]);
+  double eb_one = atof(arg[13]); 
+  double dmu_atp_one = atof(arg[14]);
+  int n_substeps_one = atoi(arg[15]);
+  int atom_start_one = atoi(arg[16]); 
+  int step_start_one = atoi(arg[17]);
+
+  if(gamt_one > 3*gamc_one)
+    error->all(FLERR,"Gamma_t > 3*Gamma_c");
+
+  int count = 0;
+  for (int i = ilo; i <= ihi; i++) {
+    ks[i] = ks_one;
+    kl[i] = kl_one;
+    circum[i] = circum_one;
+    ka[i] = ka_one;
+    area[i] = area_one;
+    temp[i] = temp_one;
+    gamc[i] = gamc_one;
+    gamt[i] = gamt_one;
+    spring_scale = spring_scale_one;
+    active_ind = active_ind_one;
+    k20 = k20_one;
+    theta = theta_one;
+    eb = eb_one;
+    dmu_atp = dmu_atp_one; 
+    n_substeps = n_substeps_one;
+    atom_start = atom_start_one; 
+    step_start = step_start_one;
+    setflag[i] = 1;
+    count++;
+  }
+
+  if (count == 0) error->all(FLERR,"Incorrect args in bond_coeff command");
+}
+
+/* ---------------------------------------------------------------------- */
+  
+void BondArea_Harmonic_VISC::init_style()
+{ 
+  double sdtt = sqrt(update->dt);
+
+  if (!allocated) error->all(FLERR,"Bond coeffs are not set");
+  for (int i = 1; i <= atom->nbondtypes; i++){
+    if (setflag[i] == 0) error->all(FLERR,"All bond coeffs are not set");
+    if (gamt[i] > 3.0*gamc[i]) error->all(FLERR,"Gamma_t > 3*Gamma_c");
+    sigc[i] = sqrt(2.0*temp[i]*(3.0*gamc[i]-gamt[i]))/sdtt;
+    sigt[i] = 2.0*sqrt(gamt[i]*temp[i])/sdtt;
+  } 
+}
+
+/* ----------------------------------------------------------------------
+   return an equilbrium bond length 
+------------------------------------------------------------------------- */
+
+double BondArea_Harmonic_VISC::equilibrium_distance(int i)
+{
+  return 0.0;
+}
+
+/* ----------------------------------------------------------------------
+   proc 0 writes out coeffs to restart file 
+------------------------------------------------------------------------- */
+
+void BondArea_Harmonic_VISC::write_restart(FILE *fp)
+{
+  fwrite(&ks[1],sizeof(double),atom->nbondtypes,fp);
+  fwrite(&kl[1],sizeof(double),atom->nbondtypes,fp);
+  fwrite(&circum[1],sizeof(double),atom->nbondtypes,fp);
+  fwrite(&ka[1],sizeof(double),atom->nbondtypes,fp);
+  fwrite(&area[1],sizeof(double),atom->nbondtypes,fp);
+  fwrite(&temp[1],sizeof(double),atom->nbondtypes,fp);
+  fwrite(&gamc[1],sizeof(double),atom->nbondtypes,fp);
+  fwrite(&gamt[1],sizeof(double),atom->nbondtypes,fp);
+}
+
+/* ----------------------------------------------------------------------
+   proc 0 reads coeffs from restart file, bcasts them 
+------------------------------------------------------------------------- */
+
+void BondArea_Harmonic_VISC::read_restart(FILE *fp)
+{
+  allocate();
+
+  if (comm->me == 0) {
+    fread(&ks[1],sizeof(double),atom->nbondtypes,fp);
+    fread(&kl[1],sizeof(double),atom->nbondtypes,fp);
+    fread(&circum[1],sizeof(double),atom->nbondtypes,fp);
+    fread(&ka[1],sizeof(double),atom->nbondtypes,fp);
+    fread(&area[1],sizeof(double),atom->nbondtypes,fp);
+    fread(&temp[1],sizeof(double),atom->nbondtypes,fp);
+    fread(&gamc[1],sizeof(double),atom->nbondtypes,fp);
+    fread(&gamt[1],sizeof(double),atom->nbondtypes,fp);
+  }
+  MPI_Bcast(&ks[1],atom->nbondtypes,MPI_DOUBLE,0,world);
+  MPI_Bcast(&kl[1],atom->nbondtypes,MPI_DOUBLE,0,world);
+  MPI_Bcast(&circum[1],atom->nbondtypes,MPI_DOUBLE,0,world);
+  MPI_Bcast(&ka[1],atom->nbondtypes,MPI_DOUBLE,0,world);
+  MPI_Bcast(&area[1],atom->nbondtypes,MPI_DOUBLE,0,world);
+  MPI_Bcast(&temp[1],atom->nbondtypes,MPI_DOUBLE,0,world);
+  MPI_Bcast(&gamc[1],atom->nbondtypes,MPI_DOUBLE,0,world);
+  MPI_Bcast(&gamt[1],atom->nbondtypes,MPI_DOUBLE,0,world);
+
+  for (int i = 1; i <= atom->nbondtypes; i++) setflag[i] = 1;
+}
+
+/* ----------------------------------------------------------------------
+   proc 0 writes to data file
+------------------------------------------------------------------------- */
+
+void BondArea_Harmonic_VISC::write_data(FILE *fp)
+{
+  for (int i = 1; i <= atom->nbondtypes; i++)
+    fprintf(fp,"%d %g %g %g %g %g %g %g %g\n",i,ks[i],kl[i],circum[i],ka[i],area[i],temp[i],gamc[i],gamt[i]);
+}
+
+/* ---------------------------------------------------------------------- */
+
+double BondArea_Harmonic_VISC::single(int type, double rsq, int i, int j,
+                        double &fforce)
+{
+  fforce = 0.0;
+  return 0.0;
+}
+
+/* ---------------------------------------------------------------------- */
+
+void BondArea_Harmonic_VISC::generate_wrr()
+{
+  int i;
+  double ww[3][3];
+  double v1, v2, factor, ss;
+
+  for (i=0; i<5; i++){
+    ss = 100.0;
+    while ( ss > 1.0 ){
+#ifdef MTRAND
+      v1 = 2.0 * mtrand->rand() - 1.0;
+      v2 = 2.0 * mtrand->rand() - 1.0;
+#else
+      v1 = 2.0 * drand48() - 1.0;
+      v2 = 2.0 * drand48() - 1.0;
+#endif
+      ss = v1*v1 + v2*v2;
+    }
+    factor = sqrt(-2.0 * log(ss)/ss);
+    if (i < 3){
+      ww[i][0] = factor*v1;
+      ww[i][1] = factor*v2;
+    }
+    else if (i == 3){
+      ww[0][2] = factor*v1;
+      ww[1][2] = factor*v2;
+    }
+    else
+      ww[2][2] = factor*v1;
+  }
+  wrr[3] = (ww[0][0]+ww[1][1]+ww[2][2])/3.0;
+  wrr[0] = (ww[0][0]-wrr[3])*delx + 0.5*(ww[0][1]+ww[1][0])*dely + 0.5*(ww[0][2]+ww[2][0])*delz;
+  wrr[1] = 0.5*(ww[1][0]+ww[0][1])*delx + (ww[1][1]-wrr[3])*dely + 0.5*(ww[1][2]+ww[2][1])*delz;
+  wrr[2] = 0.5*(ww[2][0]+ww[0][2])*delx + 0.5*(ww[2][1]+ww[1][2])*dely + (ww[2][2]-wrr[3])*delz;
+}
+
+/* ----------------------------------------------------------------------*/

@@ -1,0 +1,125 @@
+# JURECA and others
+
+SHELL = /bin/sh
+
+# ---------------------------------------------------------------------
+# compiler/linker settings
+# specify flags and libraries needed for your compiler
+
+CC =		mpicxx
+CCFLAGS =	-O3 -D __STDC_LIMIT_MACROS -D __STDC_FORMAT_MACROS -DMPICH_IGNORE_CXX_SEEK
+SHFLAGS =	-fPIC
+DEPFLAGS =	-M
+
+LINK =		mpicxx
+LINKFLAGS =	-O3 -D __STDC_LIMIT_MACROS -D __STDC_FORMAT_MACROS -DMPICH_IGNORE_CXX_SEEK/
+LIB =           
+SIZE =		size
+
+ARCHIVE =	ar
+ARFLAGS =	-rc
+SHLIBFLAGS =	-shared
+
+# ---------------------------------------------------------------------
+# LAMMPS-specific settings, all OPTIONAL
+# specify settings for LAMMPS features you will use
+# if you change any -D setting, do full re-compile after "make clean"
+
+# LAMMPS ifdef settings
+# see possible settings in Section 2.2 (step 4) of manual
+
+LMP_INC =	-DLAMMPS_GZIP
+
+# MPI library
+# see discussion in Section 2.2 (step 5) of manual
+# MPI wrapper compiler/linker can provide this info
+# can point to dummy MPI library in src/STUBS as in Makefile.serial
+# use -D MPICH and OMPI settings in INC to avoid C++ lib conflicts
+# INC = path for mpi.h, MPI compiler settings
+# PATH = path for MPI library
+# LIB = name of MPI library
+
+MPI_INC = -I/usr/local/include/      
+MPI_PATH = -L/usr/local/lib/
+MPI_LIB = -lmpi
+
+# FFT library
+# see discussion in Section 2.2 (step 6) of manaul
+# can be left blank to use provided KISS FFT library
+# INC = -DFFT setting, e.g. -DFFT_FFTW, FFT compiler settings
+# PATH = path for FFT library
+# LIB = name of FFT library
+
+FFT_INC =   -I/usr/local/include/
+FFT_PATH = -L/usr/local/lib/	
+FFT_LIB = -lfftw3	
+
+# JPEG and/or PNG library
+# see discussion in Section 2.2 (step 7) of manual
+# only needed if -DLAMMPS_JPEG or -DLAMMPS_PNG listed with LMP_INC
+# INC = path(s) for jpeglib.h and/or png.h
+# PATH = path(s) for JPEG library and/or PNG library
+# LIB = name(s) of JPEG library and/or PNG library
+
+JPG_INC =       
+JPG_PATH = 	
+JPG_LIB =	
+
+# --------------------------------------------------------------------
+#user-sdpd-own_SYSINC =
+#user-sdpd-own_SYSLIB = -llinalg -lgfortran
+#user-sdpd-own_SYSPATH = -L../../lib/linalg$(LIBOBJDIR)
+
+# ---------------------------------------------------------------------
+# build rules and dependencies
+# do not edit this section
+
+include	Makefile.package.settings
+include	Makefile.package
+
+EXTRA_INC = $(LMP_INC) $(PKG_INC) $(MPI_INC) $(FFT_INC) $(JPG_INC) $(PKG_SYSINC)
+EXTRA_PATH = $(PKG_PATH) $(MPI_PATH) $(FFT_PATH) $(JPG_PATH) $(PKG_SYSPATH) -L/usr/local/Cellar/gcc/8.2.0/lib/gcc/8/
+EXTRA_LIB = $(PKG_LIB) $(MPI_LIB) $(FFT_LIB) $(JPG_LIB) $(PKG_SYSLIB) -llapack -lgfortran
+EXTRA_CPP_DEPENDS = $(PKG_CPP_DEPENDS)
+EXTRA_LINK_DEPENDS = $(PKG_LINK_DEPENDS)
+
+# Path to src files
+
+vpath %.cpp ..
+vpath %.h ..
+
+# Link target
+
+$(EXE):	$(OBJ) $(EXTRA_LINK_DEPENDS)
+	$(LINK) $(LINKFLAGS) $(EXTRA_PATH) $(OBJ) $(EXTRA_LIB) $(LIB) -o $(EXE)
+	$(SIZE) $(EXE)
+
+# Library targets
+
+lib:	$(OBJ) $(EXTRA_LINK_DEPENDS)
+	$(ARCHIVE) $(ARFLAGS) $(EXE) $(OBJ)
+
+shlib:	$(OBJ) $(EXTRA_LINK_DEPENDS)
+	$(CC) $(CCFLAGS) $(SHFLAGS) $(SHLIBFLAGS) $(EXTRA_PATH) -o $(EXE) \
+        $(OBJ) $(EXTRA_LIB) $(LIB)
+
+# Compilation rules
+
+%.o:%.cpp $(EXTRA_CPP_DEPENDS)
+	$(CC) $(CCFLAGS) $(SHFLAGS) $(EXTRA_INC) -c $<
+
+%.d:%.cpp $(EXTRA_CPP_DEPENDS)
+	$(CC) $(CCFLAGS) $(EXTRA_INC) $(DEPFLAGS) $< > $@
+
+%.o:%.cu $(EXTRA_CPP_DEPENDS)
+	$(CC) $(CCFLAGS) $(SHFLAGS) $(EXTRA_INC) -c $<
+
+# Individual dependencies
+
+depend : fastdep.exe $(SRC)
+	@./fastdep.exe $(EXTRA_INC) -- $^ > .depend || exit 1
+
+fastdep.exe: ../DEPEND/fastdep.c
+	cc -O -o $@ $<
+
+sinclude .depend

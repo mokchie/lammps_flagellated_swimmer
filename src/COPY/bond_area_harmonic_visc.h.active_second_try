@@ -1,0 +1,80 @@
+/* ----------------------------------------------------------------------
+   LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
+   www.cs.sandia.gov/~sjplimp/lammps.html
+   Steve Plimpton, sjplimp@sandia.gov, Sandia National Laboratories
+
+   Copyright (2003) Sandia Corporation.  Under the terms of Contract
+   DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
+   certain rights in this software.  This software is distributed under 
+   the GNU General Public License.
+
+   See the README file in the top-level LAMMPS directory.
+------------------------------------------------------------------------- */
+
+#ifdef BOND_CLASS
+
+BondStyle(area/harmonic/visc,BondArea_Harmonic_VISC)
+
+#else
+
+#ifndef LMP_BOND_AREA_HARMONIC_VISC_H
+#define LMP_BOND_AREA_HARMONIC_VISC_H
+
+#include "bond.h"
+#include "stdio.h"
+
+namespace LAMMPS_NS {
+
+class BondArea_Harmonic_VISC : public Bond {
+ public:
+  BondArea_Harmonic_VISC(class LAMMPS *);
+  ~BondArea_Harmonic_VISC();
+  void compute(int, int);
+  void coeff(int, char **);
+  void init_style();
+  double equilibrium_distance(int);
+  void write_restart(FILE *);
+  void read_restart(FILE *);
+  void write_data(FILE *);
+  double single(int, double, int, int, double &);
+
+ protected:
+  double *ks, *ka, *kl, *circum, *area, *temp;
+  double *gamc, *gamt, *sigc, *sigt;
+  double wrr[4], delx, dely, delz;
+  double eng_vdwl;
+  class MTRand *mtrand;  
+  double k20, theta, eb, dmu_atp, ks_mean, ks_sig, *ks_factor, ks_factor_min, spring_scale; 
+  int atom_start, *active_sp_dist, *time_dist, *time_count;
+  int step_start, time_max, n_dist, num_steps, write_each, active_ind; 
+  class RanMars *random;
+
+  void allocate();
+  void generate_wrr();
+};
+
+}
+
+#endif
+#endif
+
+/* ERROR/WARNING messages:
+
+W: "WLC single bond too long: ...
+
+Self-explanatory.
+
+E: Incorrect args for bond coefficients
+
+Self-explanatory.  Check the input script or data file.
+
+E: Individual has wrong value or is not set! Using bond wlc/pow/all/visc only possible with individual =1
+
+Self-explanatory.  Check the input script second parameter at atom_style
+
+E: Gamma_t > 3*Gamma_c
+
+Gamma_t is to high for set Gamma_c. Change one of the values.
+
+*/
+      

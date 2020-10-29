@@ -1,0 +1,493 @@
+/* ----------------------------------------------------------------------
+   LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
+   www.cs.sandia.gov/~sjplimp/lammps.html
+   Steve Plimpton, sjplimp@sandia.gov, Sandia National Laboratories
+
+   Copyright (2003) Sandia Corporation.  Under the terms of Contract
+   DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
+   certain rights in this software.  This software is distributed under 
+   the GNU General Public License.
+
+   See the README file in the top-level LAMMPS directory.
+------------------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------------
+   Contributing author: Masoud Hoore (FZJ), Dmitry Fedosov (FZJ)
+------------------------------------------------------------------------- */
+
+// Bending potential from 
+
+#include <math.h>
+#include <stdlib.h>
+#include <mpi.h>
+#include "dihedral_bend_dual.h"
+#include "atom.h"
+#include "neighbor.h"
+#include "domain.h"
+#include "comm.h"
+#include "force.h"
+#include "group.h"
+#include "update.h"
+#include "output.h"
+#include "statistic.h"
+#include "memory.h"
+#include "error.h"
+
+using namespace LAMMPS_NS;
+
+#define BIG 1000
+/* ---------------------------------------------------------------------- 
+Syntax: dihedral_style bend/dual
+        dihedral_coeff kappa_c group_id
+
+group_id: group of all membrane vertices
+kappa_c: bending rigidity
+-------------------------------------------------------------------------*/
+DihedralBendDual::DihedralBendDual(LAMMPS *lmp) : Dihedral(lmp) {}
+
+/* ----------------------------------------------------------------------
+   free all arrays 
+------------------------------------------------------------------------- */
+
+DihedralBendDual::~DihedralBendDual()
+{
+  if (allocated) {
+    memory->destroy(setflag);
+    memory->destroy(k);
+    memory->destroy(groupbit);
+  }
+
+  memory->destroy(ver);
+  memory->destroy(id);
+  memory->destroy(c);
+  memory->destroy(r23);
+  memory->destroy(l23sq);
+  memory->destroy(l23);
+  memory->destroy(sig_p);
+  memory->destroy(D_p);
+
+}
+
+/* ---------------------------------------------------------------------- */
+
+void DihedralBendDual::compute(int eflag, int vflag)
+{
+  int i,j,m,i1,i2,i3,i4,ver1,ver2,ver3,ver4,type;
+  tagint tag1,tag3,tag4;
+  
+  double d12[3],d13[3],d42[3],d43[3],d23[3];
+  double dot1,dot2,cros1[3],cros2[3],cros_sq1,cros_sq2;
+  double D[3],sig,sig_inv,f1,f2[3],invb1,invb2;
+  double a1_p1[3],a1_p2[3],a1_p3[3],a1_p4[3];
+  double a2_p1[3],a2_p2[3],a2_p3[3],a2_p4[3];
+  double b1_p1,b1_p2,b1_p3,b1_p4;
+  double b2_p1,b2_p2,b2_p3,b2_p4;
+  double c_p1,c_p2,c_p3,c_p4;
+  double u1[3],u1_p1[3][3],u1_p2[3][3],u1_p3[3][3],u1_p4[3][3];
+  double u2[3],u2_p1[3][3],u2_p2[3][3],u2_p3[3][3],u2_p4[3][3];
+  double edihedral = 0.0;
+
+  if(eflag || vflag) ev_setup(eflag,vflag);
+  else evflag = 0;
+
+  double **x = atom->x;
+  double **f = atom->f;
+
+  int *num_dihedral = atom->num_dihedral;
+  tagint **dihedral_atom1 = atom->dihedral_atom1;
+  tagint **dihedral_atom2 = atom->dihedral_atom2;
+  tagint **dihedral_atom3 = atom->dihedral_atom3;
+  tagint **dihedral_atom4 = atom->dihedral_atom4;
+  int **dihedral_type = atom->dihedral_type;
+
+  int nlocal = atom->nlocal;
+  int nall = nlocal + atom->nghost;
+  int *mask = atom->mask;
+
+  int **dihedrallist = neighbor->dihedrallist;
+  int ndihedrallist = neighbor->ndihedrallist;
+
+  if (nall_dih != nall) {
+    nall_dih = nall;
+    memory->destroy(id);
+    memory->destroy(ver);
+    memory->create(id,nall,"dihedral:id");
+    memory->create(ver,nall,"dihedral:id");
+  }
+
+  for (i2 = 0; i2 < nlocal; i2++) {
+    if (!(mask[i2] & groupbit[1])) continue;
+
+    nv = num_dihedral[i2]+1;
+
+    ver[i2] = 0;
+    id[ver[i2]] = i2;
+
+    sig = 0.0;
+    D[0] = D[1] = D[2] = 0.0;
+    for (i = 0; i < nv; i++) {
+      sig_p[i][0] = sig_p[i][1] = sig_p[i][2] = 0.0;
+      D_p[i][0][0] = D_p[i][0][1] = D_p[i][0][2] = 0.0;
+      D_p[i][1][0] = D_p[i][1][1] = D_p[i][1][2] = 0.0;
+      D_p[i][2][0] = D_p[i][2][1] = D_p[i][2][2] = 0.0;
+    }
+
+    ver2 = ver[i2];
+    for (m = 0; m < num_dihedral[i2]; m++) {
+      type = dihedral_type[i2][m];
+
+      tag1 = dihedral_atom1[i2][m];
+      tag3 = dihedral_atom3[i2][m];
+      tag4 = dihedral_atom4[i2][m];
+
+      if (tag1 == -1 || tag3 == -1 || tag4 == -1)
+        error->one(FLERR,"Error: dihedral bend. increase communication cutoff.\n");
+
+      i1 = atom->map(tag1);
+      i3 = atom->map(tag3);
+      i4 = atom->map(tag4);
+
+      i1 = domain->closest_image(i2,i1);
+      i3 = domain->closest_image(i2,i3);
+      i4 = domain->closest_image(i2,i4);
+
+      ver[i3] = m+1;
+      id[ver[i3]] = i3;
+
+      ver3 = ver[i3];
+      for (j = 0; j < 3; j++) {
+        d12[j] = x[i1][j] - x[i2][j];
+        d13[j] = x[i1][j] - x[i3][j];
+        d42[j] = x[i4][j] - x[i2][j];
+        d43[j] = x[i4][j] - x[i3][j];
+
+        r23[ver2][ver3][j] = x[i2][j] - x[i3][j];
+      }
+
+      dot1 = d12[0]*d13[0] + d12[1]*d13[1] + d12[2]*d13[2];
+      dot2 = d42[0]*d43[0] + d42[1]*d43[1] + d42[2]*d43[2];
+
+      cros1[0] = d12[1]*d13[2] - d12[2]*d13[1];
+      cros1[1] = d12[2]*d13[0] - d12[0]*d13[2];
+      cros1[2] = d12[0]*d13[1] - d12[1]*d13[0];
+
+      cros2[0] = d42[1]*d43[2] - d42[2]*d43[1];
+      cros2[1] = d42[2]*d43[0] - d42[0]*d43[2];
+      cros2[2] = d42[0]*d43[1] - d42[1]*d43[0];
+
+      cros_sq1 = cros1[0]*cros1[0] + cros1[1]*cros1[1] + cros1[2]*cros1[2];
+      cros_sq2 = cros2[0]*cros2[0] + cros2[1]*cros2[1] + cros2[2]*cros2[2];
+
+      c[ver2][ver3] = dot1 / sqrt(cros_sq1) + dot2 / sqrt(cros_sq2);
+      l23sq[ver2][ver3] = r23[ver2][ver3][0]*r23[ver2][ver3][0] + r23[ver2][ver3][1]*r23[ver2][ver3][1] + r23[ver2][ver3][2]*r23[ver2][ver3][2];
+      l23[ver2][ver3] = sqrt(l23sq[ver2][ver3]);
+
+      sig += 0.125*(l23sq[ver2][ver3]*c[ver2][ver3]);
+
+      D[0] += c[ver2][ver3]*r23[ver2][ver3][0];
+      D[1] += c[ver2][ver3]*r23[ver2][ver3][1];
+      D[2] += c[ver2][ver3]*r23[ver2][ver3][2];
+    }
+
+    for (m = 0; m < num_dihedral[i2]; m++) {
+      tag1 = dihedral_atom1[i2][m];
+      tag3 = dihedral_atom3[i2][m];
+      tag4 = dihedral_atom4[i2][m];
+
+      i1 = atom->map(tag1);
+      i3 = atom->map(tag3);
+      i4 = atom->map(tag4);
+
+      i1 = domain->closest_image(i2,i1);
+      i3 = domain->closest_image(i2,i3);
+      i4 = domain->closest_image(i2,i4);
+
+      ver1 = ver[i1];
+      ver3 = ver[i3];
+      ver4 = ver[i4];
+
+      for (j = 0; j < 3; j++) {
+        d12[j] = x[i1][j] - x[i2][j];
+        d13[j] = x[i1][j] - x[i3][j];
+        d42[j] = x[i4][j] - x[i2][j];
+        d43[j] = x[i4][j] - x[i3][j];
+
+        d23[j] = x[i2][j] - x[i3][j];
+
+        // a_primes
+        a1_p1[j] = d13[j] + d12[j];
+        a1_p2[j] = -d13[j];
+        a1_p3[j] = -d12[j];
+        a1_p4[j] = 0.0;
+
+        a2_p1[j] = 0.0;
+        a2_p2[j] = -d43[j];
+        a2_p3[j] = -d42[j];
+        a2_p4[j] = d43[j] + d42[j];
+      }
+
+      dot1 = d12[0]*d13[0] + d12[1]*d13[1] + d12[2]*d13[2];
+      dot2 = d42[0]*d43[0] + d42[1]*d43[1] + d42[2]*d43[2];
+
+      cros1[0] = d12[1]*d13[2] - d12[2]*d13[1];
+      cros1[1] = d12[2]*d13[0] - d12[0]*d13[2];
+      cros1[2] = d12[0]*d13[1] - d12[1]*d13[0];
+
+      cros2[0] = d42[1]*d43[2] - d42[2]*d43[1];
+      cros2[1] = d42[2]*d43[0] - d42[0]*d43[2];
+      cros2[2] = d42[0]*d43[1] - d42[1]*d43[0];
+
+      cros_sq1 = cros1[0]*cros1[0] + cros1[1]*cros1[1] + cros1[2]*cros1[2];
+      cros_sq2 = cros2[0]*cros2[0] + cros2[1]*cros2[1] + cros2[2]*cros2[2];
+
+      invb1 = 1.0/sqrt(cros_sq1);
+      invb2 = 1.0/sqrt(cros_sq2);
+
+      // u = r_ij x r_jk
+      u1[0] = d12[1]*d13[2] - d12[2]*d13[1];
+      u1[1] = d12[2]*d13[0] - d12[0]*d13[2];
+      u1[2] = d12[0]*d13[1] - d12[1]*d13[0];
+
+      u2[0] = d42[1]*d43[2] - d42[2]*d43[1];
+      u2[1] = d42[2]*d43[0] - d42[0]*d43[2];
+      u2[2] = d42[0]*d43[1] - d42[1]*d43[0];
+
+      // u_p[i][j] ; i = rond(x,y,z), j = x,y,z
+      // ux_prime
+      u1_p1[0][0] = u1_p2[0][0] = u1_p3[0][0] = u1_p4[0][0] = 0.0;
+
+      u1_p1[0][1] = d12[2] - d13[2];
+      u1_p2[0][1] = d13[2];
+      u1_p3[0][1] = -d12[2];
+      u1_p4[0][1] = 0.0;
+
+      u1_p1[0][2] = -d12[1] + d13[1];
+      u1_p2[0][2] = -d13[1];
+      u1_p3[0][2] = d12[1];
+      u1_p4[0][2] = 0.0;
+
+      u2_p1[0][0] = u2_p2[0][0] = u2_p3[0][0] = u2_p4[0][0] = 0.0;
+
+      u2_p1[0][1] = 0.0;
+      u2_p2[0][1] = d43[2];
+      u2_p3[0][1] = -d42[2];
+      u2_p4[0][1] = d42[2] - d43[2];
+
+      u2_p1[0][2] = 0.0;
+      u2_p2[0][2] = -d43[1];
+      u2_p3[0][2] = d42[1];
+      u2_p4[0][2] = -d42[1] + d43[1];
+
+      // uy_prime
+      u1_p1[1][0] = -d12[2] + d13[2];
+      u1_p2[1][0] = -d13[2];
+      u1_p3[1][0] = d12[2];
+      u1_p4[1][0] = 0.0;
+
+      u1_p1[1][1] = u1_p2[1][1] = u1_p3[1][1] = u1_p4[1][1] = 0.0;
+
+      u1_p1[1][2] = d12[0] - d13[0];
+      u1_p2[1][2] = d13[0];
+      u1_p3[1][2] = -d12[0];
+      u1_p4[1][2] = 0.0;
+
+      u2_p1[1][0] = 0.0;
+      u2_p2[1][0] = -d43[2];
+      u2_p3[1][0] = d42[2];
+      u2_p4[1][0] = -d42[2] + d43[2];
+
+      u2_p1[1][1] = u2_p2[1][1] = u2_p3[1][1] = u2_p4[1][1] = 0.0;
+
+      u2_p1[1][2] = 0.0;
+      u2_p2[1][2] = d43[0];
+      u2_p3[1][2] = -d42[0];
+      u2_p4[1][2] = d42[0] - d43[0];
+
+      // uz_prime
+      u1_p1[2][0] = d12[1] - d13[1];
+      u1_p2[2][0] = d13[1];
+      u1_p3[2][0] = -d12[1];
+      u1_p4[2][0] = 0.0;
+
+      u1_p1[2][1] = -d12[0] + d13[0];
+      u1_p2[2][1] = -d13[0];
+      u1_p3[2][1] = d12[0];
+      u1_p4[2][1] = 0.0;
+
+      u1_p1[2][2] = u1_p2[2][2] = u1_p3[2][2] = u1_p4[2][2] = 0.0;
+
+      u2_p1[2][0] = 0.0;
+      u2_p2[2][0] = d43[1];
+      u2_p3[2][0] = -d42[1];
+      u2_p4[2][0] = d42[1] - d43[1];
+
+      u2_p1[2][1] = 0.0;
+      u2_p2[2][1] = -d43[0];
+      u2_p3[2][1] = d42[0];
+      u2_p4[2][1] = -d42[0] + d43[0];
+
+      u2_p1[2][2] = u2_p2[2][2] = u2_p3[2][2] = u2_p4[2][2] = 0.0;
+
+      // loop over rond(x,y,z)
+      for (j = 0; j < 3; j++) {
+        b1_p1 = invb1*(u1[0]*u1_p1[j][0] + u1[1]*u1_p1[j][1] + u1[2]*u1_p1[j][2]);
+        b1_p2 = invb1*(u1[0]*u1_p2[j][0] + u1[1]*u1_p2[j][1] + u1[2]*u1_p2[j][2]);
+        b1_p3 = invb1*(u1[0]*u1_p3[j][0] + u1[1]*u1_p3[j][1] + u1[2]*u1_p3[j][2]);
+        b1_p4 = invb1*(u1[0]*u1_p4[j][0] + u1[1]*u1_p4[j][1] + u1[2]*u1_p4[j][2]);
+
+        b2_p1 = invb2*(u2[0]*u2_p1[j][0] + u2[1]*u2_p1[j][1] + u2[2]*u2_p1[j][2]);
+        b2_p2 = invb2*(u2[0]*u2_p2[j][0] + u2[1]*u2_p2[j][1] + u2[2]*u2_p2[j][2]);
+        b2_p3 = invb2*(u2[0]*u2_p3[j][0] + u2[1]*u2_p3[j][1] + u2[2]*u2_p3[j][2]);
+        b2_p4 = invb2*(u2[0]*u2_p4[j][0] + u2[1]*u2_p4[j][1] + u2[2]*u2_p4[j][2]);
+
+        c_p1 = invb1*(a1_p1[j] - invb1*dot1*b1_p1)
+             + invb2*(a2_p1[j] - invb2*dot2*b2_p1);
+
+        c_p2 = invb1*(a1_p2[j] - invb1*dot1*b1_p2)
+             + invb2*(a2_p2[j] - invb2*dot2*b2_p2);
+
+        c_p3 = invb1*(a1_p3[j] - invb1*dot1*b1_p3)
+             + invb2*(a2_p3[j] - invb2*dot2*b2_p3);
+
+        c_p4 = invb1*(a1_p4[j] - invb1*dot1*b1_p4)
+             + invb2*(a2_p4[j] - invb2*dot2*b2_p4);
+
+        sig_p[ver1][j] += l23sq[ver2][ver3]*c_p1;
+        sig_p[ver2][j] += l23sq[ver2][ver3]*c_p2 + 2.0*c[ver2][ver3]*r23[ver2][ver3][j];
+        sig_p[ver3][j] += l23sq[ver2][ver3]*c_p3 - 2.0*c[ver2][ver3]*r23[ver2][ver3][j];
+        sig_p[ver4][j] += l23sq[ver2][ver3]*c_p4;
+
+        for (i = 0; i < 3; i++) {
+          D_p[ver1][j][i] += c_p1*r23[ver2][ver3][i];
+          D_p[ver2][j][i] += c_p2*r23[ver2][ver3][i];
+          D_p[ver3][j][i] += c_p3*r23[ver2][ver3][i];
+          D_p[ver4][j][i] += c_p4*r23[ver2][ver3][i];
+        }
+      }
+
+      D_p[ver2][0][0] += c[ver2][ver3];
+      D_p[ver2][1][1] += c[ver2][ver3];
+      D_p[ver2][2][2] += c[ver2][ver3];
+
+      D_p[ver3][0][0] -= c[ver2][ver3];
+      D_p[ver3][1][1] -= c[ver2][ver3];
+      D_p[ver3][2][2] -= c[ver2][ver3];
+
+    }
+
+    sig_inv = 1.0/sig;
+    f1  = 0.125*sig_inv*sig_inv*(D[0]*D[0] + D[1]*D[1] + D[2]*D[2]);
+    f2[0] = -2.0*sig_inv*D[0];
+    f2[1] = -2.0*sig_inv*D[1];
+    f2[2] = -2.0*sig_inv*D[2];
+
+    if (eflag)
+      edihedral = 0.125*k[type]*f1/num_dihedral[i2];
+
+    // forces
+    for (j = 0; j < nv; j++) {
+      i = id[j];
+      f[i][0] += 0.125*k[type]*(f1*sig_p[j][0] + f2[0]*D_p[j][0][0] + f2[1]*D_p[j][0][1] + f2[2]*D_p[j][0][2]);
+      f[i][1] += 0.125*k[type]*(f1*sig_p[j][1] + f2[0]*D_p[j][1][0] + f2[1]*D_p[j][1][1] + f2[2]*D_p[j][1][2]);
+      f[i][2] += 0.125*k[type]*(f1*sig_p[j][2] + f2[0]*D_p[j][2][0] + f2[1]*D_p[j][2][1] + f2[2]*D_p[j][2][2]);
+    }
+
+  }
+
+  //if (logfile) fprintf(logfile,"t=%lu, edih=%g \n",update->ntimestep,edihedral);
+    //printf("t=%lu, edih=%g \n",update->ntimestep,edihedral);
+
+}
+
+/* ---------------------------------------------------------------------- */
+
+void DihedralBendDual::allocate()
+{
+  allocated = 1;
+  int n = atom->ndihedraltypes;
+
+  int individual = atom->individual;
+  if(individual==0)
+    error->all(FLERR,"Individual has wrong value or is not set! Using dihedral bend only possible with individual =1");  
+
+  memory->create(k,n+1,"dihedral:k");
+  memory->create(groupbit,n+1,"dihedral:groupbit");
+
+  memory->create(setflag,n+1,"dihedral:setflag");
+  for (int i = 1; i <= n; i++) setflag[i] = 0;
+
+  //create once
+  nall_dih = 0;
+  memory->create(ver,1,"dihedral:ver");
+  memory->create(id,1,"dihedral:id");
+
+  nv = atom->dihedral_per_atom + 1;
+
+  memory->create(c,nv,nv,"dihedral:c");
+  memory->create(r23,nv,nv,3,"dihedral:r23");
+  memory->create(l23sq,nv,nv,"dihedral:l23sq");
+  memory->create(l23,nv,nv,"dihedral:l23");
+  memory->create(sig_p,nv,3,"dihedral:sig_p");
+  memory->create(D_p,nv,3,3,"dihedral:D_p");
+
+}
+
+/* ----------------------------------------------------------------------
+   set coeffs from one line in input script
+------------------------------------------------------------------------- */
+
+void DihedralBendDual::coeff(int narg, char **arg)
+{
+  int grp;
+
+  if (narg != 3) error->all(FLERR,"Incorrect args in dihedral_coeff command");
+  if (!allocated) allocate();
+
+  int ilo,ihi;
+  force->bounds(FLERR,arg[0],atom->ndihedraltypes,ilo,ihi);
+
+  double k_one = force->numeric(FLERR,arg[1]);
+
+  grp = group->find(arg[2]);
+  if (grp == -1) error->all(FLERR,"Could not find group ID for dihedral bend/dual");
+  int groupbit_one = group->bitmask[grp];
+
+  int count = 0;
+  for (int i = ilo; i <= ihi; i++) {
+    k[i] = k_one;
+    groupbit[i] = groupbit_one;
+    setflag[i] = 1;
+    count++;
+  }
+
+  if (count == 0) error->all(FLERR,"Incorrect args in dihedral_coeff command");
+}
+
+
+/* ----------------------------------------------------------------------
+   proc 0 writes out coeffs to restart file 
+------------------------------------------------------------------------- */
+
+void DihedralBendDual::write_restart(FILE *fp)
+{
+  fwrite(&k[1],sizeof(double),atom->ndihedraltypes,fp);
+  fwrite(&groupbit[1],sizeof(int),atom->ndihedraltypes,fp);
+}
+
+/* ----------------------------------------------------------------------
+   proc 0 reads coeffs from restart file, bcasts them 
+------------------------------------------------------------------------- */
+
+void DihedralBendDual::read_restart(FILE *fp)
+{
+  allocate();
+
+  if (comm->me == 0) {
+    fread(&k[1],sizeof(double),atom->ndihedraltypes,fp);
+    fread(&groupbit[1],sizeof(int),atom->ndihedraltypes,fp);
+  }
+  MPI_Bcast(&k[1],atom->ndihedraltypes,MPI_DOUBLE,0,world);
+  MPI_Bcast(&groupbit[1],atom->ndihedraltypes,MPI_INT,0,world);
+
+  for (int i = 1; i <= atom->ndihedraltypes; i++) setflag[i] = 1;
+}

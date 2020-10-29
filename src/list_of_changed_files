@@ -1,0 +1,153 @@
+
+Changed:
+
+angle.cpp
+angle.h
+angle_hybrid.cpp
+angle_hybrid.h
+atom.cpp
+atom.h
+atom_vec.cpp
+atom_vec.h
+atom_vec_hybrid.cpp
+atom_vec_molecular.cpp       in MOLECULE/
+atom_vec_molecular.h         in MOLECULE/  
+bond.cpp
+bond.h
+bond_hybrid.cpp
+bond_hybrid.h
+comm.cpp
+comm.h
+comm_brick.cpp
+comm_brick.h
+create_atoms.cpp             will not work for molecules and new partition 
+dihedral.cpp
+dihedral.h
+domain.cpp
+fix_addforce.cpp
+fix_addforce.h
+fix_deposit.cpp              in MISC/        
+fix_langevin.cpp
+fix_langevin.h
+fix_spring.cpp
+fix_spring.h
+input.cpp
+input.h
+lammps.cpp
+Makefile
+Make.sh
+molecule.cpp
+molecule.h
+nbin_standard.cpp
+neighbor.cpp
+neighbor.h
+nstencil_half_bin_2d_newton.cpp
+nstencil_half_bin_3d_newton.cpp
+ntopo.cpp
+ntopo.h
+ntopo_angle_all.cpp
+ntopo_angle_partial.cpp
+ntopo_bond_all.cpp
+ntopo_bond_partial.cpp
+ntopo_dihedral_all.cpp
+ntopo_dihedral_partial.cpp
+output.cpp
+output.h
+pair_dpd.cpp
+pair_dpd.h
+read_data.cpp
+read_data.h
+read_restart.cpp
+replicate.cpp
+verlet.cpp
+write_data.cpp
+write_restart.cpp
+
+Added: 
+
+angle_area_volume.cpp        in MOLECULE/
+angle_area_volume.h          in MOLECULE/
+angle_harmonic_ind.cpp       in MOLECULE/
+angle_harmonic_ind.h         in MOLECULE/
+bond_area_harmonic_visc.cpp  in MOLECULE/
+bond_area_harmonic_visc.h    in MOLECULE/
+bond_area_wlc_pow_visc.cpp   in MOLECULE/
+bond_area_wlc_pow_visc.h     in MOLECULE/
+bond_expon.cpp               in MOLECULE/
+bond_expon.h                 in MOLECULE/ 
+bond_indivharmonic.cpp       in MOLECULE/
+bond_indivharmonic.h         in MOLECULE/
+bond_wlc_pow_all.cpp         in MOLECULE/
+bond_wlc_pow_all.h           in MOLECULE/
+bond_wlc_pow_all_visc.cpp    in MOLECULE/
+bond_wlc_pow_all_visc.h      in MOLECULE/
+comm_mosaic.cpp
+comm_mosaic.h
+compile
+create_source
+dihedral_bend.cpp            in MOLECULE/
+dihedral_bend.h              in MOLECULE/
+dihedral_bend_dual.cpp       in MOLECULE/
+dihedral_bend_dual.h         in MOLECULE/ 
+dihedral_bend_mix.cpp        in MOLECULE/
+dihedral_bend_mix.h          in MOLECULE/
+dihedral_bend_zero.cpp       in MOLECULE/
+dihedral_bend_zero.h         in MOLECULE/
+fix_acoust_force.cpp
+fix_acoust_force.h
+fix_active_brown.cpp
+fix_active_brown.h
+fix_active_fluct.cpp
+fix_active_fluct.h
+fix_bond_create_break.cpp
+fix_bond_create_break.h
+fix_bond_create_break_seb.cpp
+fix_bond_create_break_seb.h
+fix_break_pol.cpp
+fix_break_pol.h
+fix_catch_bond.cpp
+fix_catch_bond.h
+fix_force_bound_2d.cpp
+fix_force_bound_2d.h
+fix_force_bound.cpp
+fix_force_bound.h
+fix_inflow.cpp
+fix_inflow.h
+fix_inflow_periodic.cpp
+fix_inflow_periodic.h
+fix_lees_edwards.cpp
+fix_lees_edwards.h
+fix_mem_swap.cpp
+fix_mem_swap.h
+fix_outflow.cpp
+fix_outflow.h
+fix_polymer_activate.cpp
+fix_polymer_activate.h
+fix_setvel.cpp
+fix_setvel.h
+fix_solid_bound.cpp
+fix_solid_bound.h
+fix_wall_force.cpp
+fix_wall_force.h
+fix_wall_lj126_force.cpp
+fix_wall_lj126_force.h
+fix_wall_lj126_measure.cpp
+fix_wall_lj126_measure.h
+fix_wall_measure.cpp
+fix_wall_measure.h
+list_of_changed_files
+MersenneTwister.h
+pair_lj_own.cpp
+pair_lj_own.h
+read_bonds.cpp 
+read_bonds.h 
+set_individ.cpp
+set_individ.h
+statistic.cpp
+statistic.h
+
+COPY/
+MAKE/MINE/
+MANUAL_FOR_CHANGED_FILES/
+USER-SDPD-OWN/
+USER-STATISTIC/

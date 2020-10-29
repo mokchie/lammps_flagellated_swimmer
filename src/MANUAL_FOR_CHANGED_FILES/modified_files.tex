@@ -1,0 +1,284 @@
+\chapter{Modified files (exist in original LAMMPS)}
+
+\section{angle}
+
+{\bfseries Syntax:} No change.
+\vspace{0.2cm}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item The additional function \textbf{ev\_tally2} has been added in order to calculate the tally energy and the virial for the style angle\_area\_volume.
+\end{itemize}
+  
+\section{angle\_hybrid}
+
+{\bfseries Syntax:} No change.
+\vspace{0.2cm}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item Some modifications to enable the usage of multiple (hybrid) angle styles including styles with individual angle properties (variable \textbf{anglelist\_area}). 
+\end{itemize}
+  
+\section{atom}
+\label{sec:atom}
+
+{\bfseries Syntax:}
+
+atom\_style \textit{individual} \textit{style}
+\begin{itemize}
+\item \textit{individual} = $0$ or $1$
+\item \textit{style} = atomic, molecular, sdpd, etc.
+\end{itemize}
+
+{\bfseries Description:}
+
+\textit{individual} is an indicator whether individual bond lengths, triangle areas, and dihedral angles are used or not in the input file. Note that
+individual=1 can only be used with atom styles molecular, sdpd, or thermal.
+
+\textit{style} - one of possible atom styles employed in simulations.
+\vspace{0.2cm}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item The new parameter \textbf{individual} and the arrays \textbf{bond\_length}, \textbf{angle\_area}, and \textbf{dihedral\_angle} were added.
+  The parameter \textbf{individual} serves as an indicator whether individual bond lengths, triangle areas, and dihedral angles are used or not.
+  If yes, these parameters have to be included within the initial-condition file, so that the structure of the input file is different from that
+  in original LAMMPS. 
+\item Added a function \textbf{calc\_n\_per\_molecule()} to calculate the maximum number of molecules (variable \textbf{n\_mol\_max}) in the simulation system,
+  the number of different molecule types (variables \textbf{n\_mol\_types} and \textbf{mol\_type}) based on molecule size, and molecular sizes (variable \textbf{mol\_size})
+  of these types. 
+\item Several functions which handle setting of a particle moment of inertia (similar to particle mass) required for SDPD simulations with angular momentum conservation. 
+\item Variable  \textbf{c\_v} for heat capacity used by atom style \textbf{thermal}.
+\item Several variables (\textbf{ mol\_corresp\_ind}, \textbf{fix\_force\_bound\_ind}, \textbf{n\_mol\_corresp\_glob}, \textbf{n\_mol\_corresp\_glob\_max},
+  \textbf{mol\_corresp\_glob}), which are needed in simulations with molecules and inflow boundary conditions.  
+\end{itemize}
+  
+\section{atom\_vec}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item Several modifications to enable the option for individual bond lengths, triangle areas, and dihedral angles.
+\item The variables \textbf{moment\_type} and \textbf{individual} were added.
+\item The functions \textbf{pack\_bond}, \textbf{pack\_angle}, \textbf{pack\_dihedral}, \textbf{write\_bond}, \textbf{write\_angle}, \textbf{write\_dihedral} were
+  changed, such that the individual values are taken into account.
+\item The function \textbf{return\_image} was added to obtain particle images.
+\end{itemize}
+  
+\section{atom\_vec\_hybrid}
+
+{\bfseries Syntax:}
+
+atom\_style \textit{individual} hybrid \textit{styles}
+\begin{itemize}
+\item \textit{individual} = $0$ or $1$
+\item \textit{styles} = atomic, molecular, sdpd, etc.
+\end{itemize}
+
+{\bfseries Description:} Similar to the description for \hyperref[sec:atom]{\textbf{atom}} above, but several atom styles can be declared.
+\vspace{0.2cm}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item The variable \textbf{size\_border} is changed from 6 to 7 to communicate particle images.
+\item In the functions \textbf{pack\_border}, \textbf{pack\_border\_vel}, \textbf{unpack\_border}, and \textbf{unpack\_border\_vel} the image flag
+  is communicated to other neighboring processors.
+\item The variable \textbf{moment\_type} was added.
+\end{itemize}  
+
+\section{atom\_vec\_molecular (MOLECULE package)}
+
+{\bfseries Syntax:}
+
+atom\_style \textit{individual} molecular
+\begin{itemize}
+\item \textit{individual} = $0$ or $1$
+\end{itemize}
+
+{\bfseries Description:} Similar to the description for \hyperref[sec:atom]{\textbf{atom}} above.
+\vspace{0.2cm}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item For SDPD simulations the \textbf{spin} and \textbf{rho} variables were added.
+\item For the individual data \textbf{bond\_length}, \textbf{angle\_area}, and \textbf{dihedral\_angle} were added.
+\item The variable \textbf{size\_border} is changed from 7 to 8.
+\item In the functions \textbf{pack\_border}, \textbf{pack\_border\_vel}, \textbf{unpack\_border}, and \textbf{unpack\_border\_vel} the image
+  flag is communicated to other neighboring processors.
+\item The functions \textbf{pack\_exchange}, \textbf{unpack\_exchange}, \textbf{pack\_restart}, and \textbf{unpack\_restart} are changed in order
+  to communicate the \textbf{spin}, \textbf{bond\_length}, \textbf{angle\_area}, and \textbf{dihedral\_angle} variables.
+\end{itemize}
+
+\section{bond}
+
+{\bfseries Syntax:} No change.
+\vspace{0.2cm}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item The additional function \textbf{ev\_tally2} has been added in order to calculate the tally energy and the virial for the style bond\_wlc\_pow\_all\_visc.
+\item The additional function \textbf{ev\_tally3} has been added in order to calculate the tally energy and the virial for the styles bond\_area\_wlc\_pow\_visc and bond\_area\_harmonic\_visc.  
+\end{itemize}
+
+\section{bond\_hybrid}
+
+{\bfseries Syntax:} No change.
+\vspace{0.2cm}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item Some modifications to enable the usage of multiple (hybrid) bond styles including styles with individual bond properties (variable \textbf{bondlist\_length}). 
+\end{itemize}
+
+\section{comm}
+
+{\bfseries Syntax:} No change.
+\vspace{0.2cm}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item Some modifications to enable the usage of a new domain decomposition \textbf{mosaic}.  
+\item The variables \textbf{user\_part}, \textbf{processed\_data\_ind}, and \textbf{m\_comm} and the grid flag \textbf{USER} are for the mosaic decomposition.
+\item The variables \textbf{le}, \textbf{u\_le}, and \textbf{shift} are related to the Lees-Edwards boundary conditions.
+\end{itemize}
+  
+\section{comm\_brick}
+
+{\bfseries Syntax:} No change.
+\vspace{0.2cm}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item Some modifications to enable the Lees-Edwards boundary conditions with the new variables \textbf{le\_nall}, \textbf{le\_nmax}, and \textbf{le\_sh} and
+the function \textbf{lees\_edwards(int)}.
+\end{itemize}
+
+\section{create\_atoms}
+
+{\bfseries Syntax:} No change.
+\vspace{0.2cm}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item Some modifications needed for the new domain decomposition \textbf{mosaic}.
+\end{itemize}  
+
+\section{dihedral}
+
+{\bfseries Syntax:} No change.
+\vspace{0.2cm}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item The additional function \textbf{ev\_tally2} has been added to calculate the tally energy and the virial for the styles dihedral\_bend and dihedral\_bend\_zero.
+\end{itemize}  
+
+\section{domain}
+
+{\bfseries Syntax:} No change.
+\vspace{0.2cm}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item Some modifications to enable the use of \textbf{mosaic} option for domain decomposition and the usage of Lees-Edwards boundary conditions. 
+\end{itemize}
+
+\section{fix\_addforce}
+
+
+\section{fix\_deposit}
+
+{\bfseries Syntax:} No change.
+\vspace{0.2cm}
+
+{\bfseries Code modifications:}
+\begin{itemize}
+\item Some modifications to enable the use of \textbf{mosaic} option for domain decomposition with this fix.  
+\end{itemize}
+
+\section{fix\_langevin}
+
+
+\section{fix\_spring}
+
+
+\section{input.cpp}
+
+In order to include the new class statistic the input has to search for the  keyword "statistic" and if it is found it has to call the function add\_statistic (see output).
+
+\underline{Notice}: The form how statistic is written in input file is changed!
+
+
+\section{lammps.cpp}
+
+Statistic Class is included
+
+
+\section{Makefile}
+
+
+\subsection{Make.sh}
+
+Include new class statistic
+
+
+\section{molecular}
+
+
+\section{neigh\_bond}
+
+The functions \textbf{bond\_all}, \textbf{bond\_partial}, \textbf{angle\_all}, \textbf{angle\_partial}, \textbf{dihedral\_all} and \textbf{dihedral\_partial} to create bondlist\_length, anglelist\_area, dihedrallist\_angle respectively if individual == 1;
+
+
+\section{neighbor}
+
+The new lists bondlist\_length, anglelist\_area, dihedrallist\_angle are included in order to make neighbor lists for the bond\_length, angle\_area and dihedral\_angle
+
+
+\section{neigh\_stencil}
+
+
+\section{output}
+
+The new statistic class is made similar to the dump class. The new function \textbf{add\_sta\-tist\-ic} adds a statistic to the list of all statistics. In the function \textbf{setup} the first statistic can be calculated and the timestep for the next statistic calculation and the next statistic writing is determined. The new function \textbf{calc} executes the statistic calculation and set the timestamp for the next calculation. In the function \textbf{write} a writing of statistic can be performs and the next timestep for output writing is now determined including the next writing of statistic.
+
+
+\section{pair\_dpd}
+
+The \textbf{new parameter} weight\_exp is introduced to calculate the weight function like in ... . Depending on weight\_exp $=\kappa$, the weight function $\omega^R = \left(1-r_{ij}/r_c\right)^{\kappa}$ is calculated once, and every timestep, the weight function at the point $r_{ij}$ is calculated via linear interpolation.
+\underline{Notice}: input file has to be different to original LAMMPS. For the pair\_coeff there is the additional weight\_exp included after $\gamma$ and before the optional cut\_off.
+
+\section{pair\_lj\_cut}
+\label{sec:pair_lj_cut}
+
+An optional new keyword \textbf{smooth} is added to the pair style. Its argument is $f_{\mathrm{smooth}}$, the maximum force applied to a particle by this pair style. This keyword let us to smooth the movement of particles which have come very close together usually because of large timestep or impact. Setting a maximum force for the LJ potential helps us to keep timestep large as desired and avoid simulation crash due to sudden impact of objects. As a rule of thumb, this force can be set hundred times the estimated average force on the particles.
+
+\section{read\_data.cpp}
+Read a text-file of initial configurations.\\For the personal code to create the initial configuration, see \nameref{sec:data_domain}. For the \textit{LAMMPS}-function to read this configuration, you can mostly refer to the official documentation.
+
+
+\section{read\_restart.cpp}
+
+In function \textbf{header} words are always read not only for the hybrid style because the value of individual should be stored there at least.
+ 
+\section{replicate.cpp}
+
+In the function \textbf{command} the value of individual is also replicated.
+
+ 
+\section{verlet.cpp}
+
+in the function \textbf{run} the statistic calculation is performed in the case is has to at that timestep. To include the calculation not in the output function write is more efficient because this calculation is done much more often than the writing (every time step) and the write function comprised a lot of if-statements.
+
+\textit{Idea: Include also a calc\_pre before the post\_force calculation and expand output such that there exist two statistic class lists for the two points where the statistic calculations should be performed.}
+
+
+\section{write\_data.cpp}
+
+
+\section{write\_restart.cpp}
+
+In function \textbf{header} the value of individual is written to the restart file.
+
+
+\section{MOLECULE/install.sh}
