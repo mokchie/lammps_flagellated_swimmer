@@ -227,6 +227,7 @@ void PairSDPDVENoFluc2D::compute(int eflag, int vflag)
             wd = (weight1[itype][jtype][k+1]-weight1[itype][jtype][k])*(r*dr_inv - k) + weight1[itype][jtype][k];
             wdf = ((weight2[itype][jtype][k+1]-weight2[itype][jtype][k])*(r*dr_inv - k) + weight2[itype][jtype][k]);
             rho[i] += wd;
+            //here kappa is actually the transpose of velocity gradient tensor
             kappa[i][0][0] += wdf*delx*delvx;
             kappa[i][0][1] += wdf*delx*delvy;
             kappa[i][1][0] += wdf*dely*delvx;

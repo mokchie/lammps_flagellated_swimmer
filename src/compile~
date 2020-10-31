@@ -1,9 +1,0 @@
-#!/bin/sh
-
-make yes-molecule
-make yes-user-sdpd-ve
-make yes-user-sdpdc
-make yes-user-statistic
-
-make $1 
-

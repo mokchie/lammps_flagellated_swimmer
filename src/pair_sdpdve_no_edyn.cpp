@@ -229,6 +229,7 @@ void PairSDPDVENoEdyn::compute(int eflag, int vflag)
             wd = (weight1[itype][jtype][k+1]-weight1[itype][jtype][k])*(r*dr_inv - k) + weight1[itype][jtype][k];
             wdf = ((weight2[itype][jtype][k+1]-weight2[itype][jtype][k])*(r*dr_inv - k) + weight2[itype][jtype][k]);
             rho[i] += wd;
+            //here kappa is actually the transpose of velocity gradient tensor
             kappa[i][0][0] += wdf*delx*delvx;
             kappa[i][0][1] += wdf*delx*delvy;
             kappa[i][0][2] += wdf*delx*delvz;
@@ -307,6 +308,7 @@ void PairSDPDVENoEdyn::compute(int eflag, int vflag)
     // Solve linear equations to get higer order accuracy of velocity gradient
     // \chi_{\beta \alpha} \partial v_\gamma / \partial r_\alpha = B_{\beta \gamma}
     // For more details please check equation 70 of Price D. J., 2012, J. Comput. Phys., 231, 759
+    // and the appendix of Lee Cullen and Walter Dehnen, Mon. Not. R. Astron. Soc. 408, 669-683 (2010)
     dsysv_( "Upper", &lda, &ldb, iA, &lda, ipiv, iB, &ldb, iwork, &ilwork, &info );
     if( info != 0 ) {
       printf( "The algorithm failed to solve the linear equations.\n" );
@@ -520,7 +522,7 @@ void PairSDPDVENoEdyn::compute(int eflag, int vflag)
       }
     }
 
-
+    // Note that here kappa is actually the transpose of the velocity gradient tensor
     for(j=0; j<3; j++){
       for(k=j; k<3; k++){
         f_ctensor[i][j][k] = ctensor[i][j][0]*kappa[i][0][k] + ctensor[i][j][1]*kappa[i][1][k] + ctensor[i][j][2]*kappa[i][2][k] + ctensor[i][k][0]*kappa[i][0][j] + ctensor[i][k][1]*kappa[i][1][j] + ctensor[i][k][2]*kappa[i][2][j] - ctensor[i][j][k]*tau_inv + fcr[j][k];
