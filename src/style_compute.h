@@ -25,6 +25,7 @@
 #include "compute_fragment_atom.h"
 #include "compute_global_atom.h"
 #include "compute_group_group.h"
+#include "compute_group_group_bondc.h"
 #include "compute_group_group_fv.h"
 #include "compute_group_group_region.h"
 #include "compute_gyration.h"

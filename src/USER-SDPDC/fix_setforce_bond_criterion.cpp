@@ -41,7 +41,7 @@ FixSetForceBondCriterion::FixSetForceBondCriterion(LAMMPS *lmp, int narg, char *
 {
   if (narg < 8) error->all(FLERR,"Illegal fix setforce/bond/criterion command");
 
-  dynamic_group_allow = 1;
+  dynamic_group_allow = 1; 
   vector_flag = 1;
   size_vector = 3;
   global_freq = 1;
