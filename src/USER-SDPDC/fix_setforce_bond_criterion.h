@@ -51,7 +51,7 @@ class FixSetForceBondCriterion : public Fix {
   double foriginal[3],foriginal_all[3];
   int force_flag;
   int nlevels_respa,ilevel_respa;
-  double *totalnum_bond;
+  int *totalnum_bond;
   int nmax;
   int btype;
 

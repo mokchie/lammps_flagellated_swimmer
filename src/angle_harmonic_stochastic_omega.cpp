@@ -438,11 +438,11 @@ double AngleStochasticOmega::gaussian(){
   double x,y,rsq,f;
   do{
 #ifdef MTRAND    
-    x = 2.0 * mtrand->rand() /(double)RAND_MAX - 1.0; 
-    y = 2.0 * mtrand->rand() /(double)RAND_MAX - 1.0; 
+    x = 2.0 * mtrand->rand() - 1.0; 
+    y = 2.0 * mtrand->rand() - 1.0; 
 #else
-    x = 2.0 * random->uniform() /(double)RAND_MAX - 1.0; 
-    y = 2.0 * random->uniform() /(double)RAND_MAX - 1.0; 
+    x = 2.0 * random->uniform() - 1.0; 
+    y = 2.0 * random->uniform() - 1.0; 
 #endif
     rsq = x*x + y*y;
   } while( rsq>=1.0 || rsq==0.0);

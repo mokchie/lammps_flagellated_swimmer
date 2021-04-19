@@ -11,6 +11,7 @@
 #include "angle_harmonic_ind.h"
 #include "angle_harmonic_powconst.h"
 #include "angle_harmonic_stochastic_omega.h"
+#include "angle_harmonic_theta_QL.h"
 #include "angle_hybrid.h"
 #include "angle_table.h"
 #include "angle_zero.h"

@@ -244,7 +244,7 @@ void FixSetForceBondCriterion::post_force(int /*vflag*/)
     memory->create(totalnum_bond,nmax,"setforce/bond/criterion:totalnum_bond");
   }
   for(int i = 0; i < nall; i++){
-    totalnum_bond[i] = 0.0;
+    totalnum_bond[i] = 0;
   }
   for (n=0; n<nbondlist; n++){
     i1 = bondlist[n][0];
@@ -407,7 +407,7 @@ int FixSetForceBondCriterion::pack_reverse_comm(int n, int first, double *buf)
   m = 0;
   last = first + n;
   for (i = first; i < last; i++) {
-    buf[m++] = totalnum_bond[i];
+    buf[m++] = ubuf(totalnum_bond[i]).d;
   }
   return m;
 }
@@ -418,6 +418,6 @@ void FixSetForceBondCriterion::unpack_reverse_comm(int n, int *list, double *buf
   m = 0;
   for (i = 0; i < n; i++) {
     j = list[i];
-    totalnum_bond[j] += buf[m++];
+    totalnum_bond[j] += ubuf(buf[m++]).i;
   }
 }
