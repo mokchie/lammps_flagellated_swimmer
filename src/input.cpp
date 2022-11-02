@@ -1418,7 +1418,7 @@ void Input::atom_style()
     error->all(FLERR,"Atom_style command after simulation box is defined");
   atom->individual = force->inumeric(FLERR,arg[0]);
   if (atom->individual)
-    if (!(strcmp(arg[1],"molecular") == 0) && !(strcmp(arg[1],"sdpd") == 0) && !(strcmp(arg[1],"sdpdve") == 0)  && !(strcmp(arg[1],"sdpdve/no/edyn") == 0) && !(strcmp(arg[1],"thermal") == 0) && !(strcmp(arg[1],"sdpdc") == 0))
+    if (!(strcmp(arg[1],"molecular") == 0) && !(strcmp(arg[1],"sdpd") == 0) && !(strcmp(arg[1],"sdpdve") == 0)  && !(strcmp(arg[1],"sdpdve/no/edyn") == 0) && !(strcmp(arg[1],"thermal") == 0) && !(strcmp(arg[1],"sdpdc") == 0) && !(strcmp(arg[1],"sdpd/mc") == 0))
       error->all(FLERR,"The parameter individual != 0 can only be used with atom_style molecular, sdpd, sdpdve, and thermal."); 
   atom->create_avec(arg[1],narg-2,&arg[2],1);
 }

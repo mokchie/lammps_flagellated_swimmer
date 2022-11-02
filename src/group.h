@@ -39,13 +39,16 @@ class Group : protected Pointers {
 
   bigint count_all();                      // count atoms in group all
   bigint count(int);                       // count atoms in group
+  bigint count_mol(int,int);               // count atoms in group & mol
   bigint count(int,int);                   // count atoms in group & region
   double mass(int);                        // total mass of atoms in group
   double mass(int,int);
+  double mass_mol(int,int);
   double charge(int);                      // total charge of atoms in group
   double charge(int,int);
   void bounds(int, double *);              // bounds of atoms in group
   void bounds(int, double *, int);
+  void xcm_mol(int,int,double,double *);
   void r2cm(int, int, double *, double *);
   void lr(int, int, double *, double *);
   void xcm(int, double, double *);         // center-of-mass coords of group

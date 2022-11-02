@@ -449,3 +449,6 @@ double AngleStochasticOmega::gaussian(){
   f = sqrt(-2.0*log(rsq)/rsq);
   return x*f;
 }
+double AngleStochasticOmega::query_omega(int atype){
+  return omg_t[atype];
+}

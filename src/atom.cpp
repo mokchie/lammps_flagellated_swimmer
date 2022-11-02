@@ -90,6 +90,7 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   q = NULL;
   mu = NULL;
   omega = angmom = torque = NULL;
+  grain = NULL;
   ctensor = NULL;
   kappa = NULL;
   chi = NULL;
@@ -103,7 +104,7 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   fixfine = NULL;
   fixed = NULL;
 
-  radius = rmass = NULL;
+  radius = radius0 = rmass = NULL;
   ellipsoid = line = tri = body = NULL;
 
   vfrac = s0 = NULL;
@@ -311,6 +312,7 @@ Atom::~Atom()
   memory->destroy(fixfine);  
   memory->destroy(fixed); 
   memory->destroy(radius);
+  memory->destroy(radius0);
   memory->destroy(rmass);
   memory->destroy(ellipsoid);
   memory->destroy(line);
@@ -2519,6 +2521,7 @@ void *Atom::extract(char *name)
   if (strcmp(name,"conc") == 0) return (void *) conc; 
   if (strcmp(name,"f_conc") == 0) return (void *) f_conc;
   if (strcmp(name,"radius") == 0) return (void *) radius;
+  if (strcmp(name,"radius0") == 0) return (void *) radius0;
   if (strcmp(name,"rmass") == 0) return (void *) rmass;
   if (strcmp(name,"ellipsoid") == 0) return (void *) ellipsoid;
   if (strcmp(name,"line") == 0) return (void *) line;

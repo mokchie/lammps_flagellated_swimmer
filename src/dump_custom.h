@@ -142,6 +142,7 @@ class DumpCustom : public Dump {
   void pack_type(int);
   void pack_mass(int);
   void pack_rho(int);
+  void pack_grain(int);
   void pack_conc1(int);  
   void pack_conc2(int);  
   void pack_conc3(int);  

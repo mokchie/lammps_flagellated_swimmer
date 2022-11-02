@@ -849,7 +849,6 @@ double PairSDPDC::single_vec(int i, int j, int itype, int jtype, double rsq,
   p_j = p0*p_j + bb;
   //p_j = p0*pow(rho[j]/rho0[jtype][jtype],g_exp) + bb;
 
-
   k = static_cast<int> (r*dr_inv);
   wd = (weight2[itype][jtype][k+1]-weight2[itype][jtype][k])*(r*dr_inv - k) + weight2[itype][jtype][k];
   delx = x[i][0] - x[j][0];

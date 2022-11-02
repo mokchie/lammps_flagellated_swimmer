@@ -44,7 +44,7 @@ enum{ID,MOL,PROC,PROCP1,TYPE,ELEMENT,MASS,
      OMEGAX,OMEGAY,OMEGAZ,ANGMOMX,ANGMOMY,ANGMOMZ,
      TQX,TQY,TQZ,
      COMPUTE,FIX,VARIABLE,INAME,DNAME,
-     CEIGEN1,CEIGEN2,CEIGEN3,CTENSOR11,CTENSOR22,CTENSOR33,CTENSOR12,CTENSOR13,CTENSOR23,KAPPA11,KAPPA22,KAPPA33,KAPPA12,KAPPA13,KAPPA21,KAPPA23,KAPPA31,KAPPA32,RHO,CONC1,CONC2,CONC3,CONC4,CONC5,CONC6};
+     CEIGEN1,CEIGEN2,CEIGEN3,CTENSOR11,CTENSOR22,CTENSOR33,CTENSOR12,CTENSOR13,CTENSOR23,KAPPA11,KAPPA22,KAPPA33,KAPPA12,KAPPA13,KAPPA21,KAPPA23,KAPPA31,KAPPA32,RHO,CONC1,CONC2,CONC3,CONC4,CONC5,CONC6,GRAIN};
 enum{LT,LE,GT,GE,EQ,NEQ,XOR};
 
 #define INVOKED_PERATOM 8
@@ -548,6 +548,15 @@ int DumpCustom::count()
         }
         ptr = atom->rho;
         nstride = 1;
+      } else if (thresh_array[ithresh] == GRAIN) {
+        if (!atom->grain_flag){
+          error->all(FLERR,
+                     "Threshold for an atom property that isn't allocated");
+        }
+        int *grain = atom->grain;
+        for (i = 0; i < nlocal; i++) dchoose[i] = grain[i];
+        ptr = dchoose;
+        nstride = 1;        
       } else if (thresh_array[ithresh] == CONC1) {
         if (!atom->conc_flag){
           error->all(FLERR,
@@ -1363,6 +1372,9 @@ int DumpCustom::parse_fields(int narg, char **arg)
     } else if (strcmp(arg[iarg],"rho") == 0) {
       pack_choice[i] = &DumpCustom::pack_rho;
       vtype[i] = Dump::DOUBLE;
+    } else if (strcmp(arg[iarg],"grain") == 0) {
+      pack_choice[i] = &DumpCustom::pack_grain;
+      vtype[i] = Dump::INT;      
     } else if (strcmp(arg[iarg],"conc1") == 0) {
       pack_choice[i] = &DumpCustom::pack_conc1;
       vtype[i] = Dump::DOUBLE;
@@ -2015,6 +2027,7 @@ int DumpCustom::modify_param(int narg, char **arg)
     else if (strcmp(arg[1],"type") == 0) thresh_array[nthresh] = TYPE;
     else if (strcmp(arg[1],"mass") == 0) thresh_array[nthresh] = MASS;
     else if (strcmp(arg[1],"rho") == 0) thresh_array[nthresh] = RHO;
+    else if (strcmp(arg[1],"grain") == 0) thresh_array[nthresh] = GRAIN;
     else if (strcmp(arg[1],"conc1") == 0) thresh_array[nthresh] = CONC1;
     else if (strcmp(arg[1],"conc2") == 0) thresh_array[nthresh] = CONC2;
     else if (strcmp(arg[1],"conc3") == 0) thresh_array[nthresh] = CONC3;
@@ -2500,6 +2513,18 @@ void DumpCustom::pack_rho(int n)
 
   for (int i = 0; i < nchoose; i++) {
     buf[n] = rho[clist[i]];
+    n += size_one;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void DumpCustom::pack_grain(int n)
+{
+  int *grain = atom->grain;
+
+  for (int i = 0; i < nchoose; i++) {
+    buf[n] = grain[clist[i]];
     n += size_one;
   }
 }

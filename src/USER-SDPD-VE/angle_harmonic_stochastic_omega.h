@@ -46,6 +46,7 @@ class AngleStochasticOmega : public Angle {
   void allocate();
   void update_omega();
   double gaussian();
+  double query_omega(int);
 };
 
 }

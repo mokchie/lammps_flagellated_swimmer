@@ -175,6 +175,7 @@ void FixBondSwell::post_integrate()
 
   tagint **bond_atom = atom->bond_atom;
   int *num_bond = atom->num_bond;  
+  int **btyp = atom->bond_type;
   double *bondlist_length = neighbor->bondlist_length;
   double **bond_length = atom->bond_length;
   double **bond_length0 = atom->bond_length0;
@@ -185,13 +186,16 @@ void FixBondSwell::post_integrate()
   for (i=0; i<nlocal; i++){
     if (!(mask[i] & groupbit)) continue;
     for (m=0; m<num_bond[i]; m++){
+      if (btyp[i][m]!=btype) continue;
       j = atom->map(bond_atom[i][m]);
       if(!(mask[j] & groupbit)) continue;
       rhom = (fluid_rho[i]+fluid_rho[j])/2;
       //if(fluid_rho[i]>3.0 || fluid_rho[j]>3.0)
         //printf("i=%d,j=%d,rhoi=%.2f,rhoj=%.2f\n",i,j,fluid_rho[i],fluid_rho[j]);
       if (bond_length[i][m] < bond_length0[i][m]*rmax_factor && update->ntimestep*update->dt>t_start && rhom>rhoc){
-        bond_length[i][m] += ks*pow(rhom-rhoc,1.0/domain->dimension)*bond_length0[i][m]*update->dt;
+        //bond_length[i][m] += ks*pow(rhom-rhoc,1.0/domain->dimension)*bond_length0[i][m]*update->dt;
+        bond_length[i][m] += ks*(rhom-rhoc)*(bond_length0[i][m]*rmax_factor-bond_length[i][m])*bond_length0[i][m]*update->dt;
+        //bond_length[i][m] += ks*(rhom-rhoc)*bond_length0[i][m]*update->dt;
       }
     }
   }

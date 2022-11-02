@@ -13,6 +13,7 @@
 #include "compute_cna_atom.h"
 #include "compute_com.h"
 #include "compute_com_chunk.h"
+#include "compute_conc.h"
 #include "compute_contact_atom.h"
 #include "compute_coord_atom.h"
 #include "compute_deprecated.h"

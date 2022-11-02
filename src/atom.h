@@ -66,7 +66,7 @@ class Atom : protected Pointers {
 
   double *q,**mu;
   double **omega,**angmom,**torque;
-  double *radius,*rmass;
+  double *radius,*radius0,*rmass;
   int *ellipsoid,*line,*tri,*body;
 
   //viscoelastic SDPD package
@@ -78,7 +78,7 @@ class Atom : protected Pointers {
   double ***f_ctensor;
 
   //SDPD with concentration package
-  int *fixfine,*fixed;
+  int *fixfine,*fixed,*grain;
   double **conc;
   double **f_conc;  
 
@@ -175,6 +175,7 @@ class Atom : protected Pointers {
   int ctensor_flag;
   int eigen_flag;
   int conc_flag;
+  int grain_flag;
   int vfrac_flag,spin_flag,eradius_flag,ervel_flag,erforce_flag;
   int cs_flag,csforce_flag,vforce_flag,ervelforce_flag,etag_flag;
   int rho_flag,e_flag,cv_flag,vest_flag,thermal_flag;

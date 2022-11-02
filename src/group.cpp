@@ -788,6 +788,27 @@ bigint Group::count(int igroup)
 }
 
 /* ----------------------------------------------------------------------
+   count atoms in group & mol
+------------------------------------------------------------------------- */
+
+bigint Group::count_mol(int igroup, int mol)
+{
+  int groupbit = bitmask[igroup];
+  tagint *molecule = atom->molecule;
+  int *mask = atom->mask;
+  int nlocal = atom->nlocal;
+
+  int n = 0;
+  for (int i = 0; i < nlocal; i++)
+    if ((mask[i] & groupbit) && molecule[i]==mol) n++;
+
+  bigint nsingle = n;
+  bigint nall;
+  MPI_Allreduce(&nsingle,&nall,1,MPI_LMP_BIGINT,MPI_SUM,world);
+  return nall;
+}
+
+/* ----------------------------------------------------------------------
    count atoms in group and region
 ------------------------------------------------------------------------- */
 
@@ -841,6 +862,35 @@ double Group::mass(int igroup)
   return all;
 }
 
+/* ----------------------------------------------------------------------
+   compute the total mass of group of atoms in a specified mol
+   use either per-type mass or per-atom rmass
+------------------------------------------------------------------------- */
+
+double Group::mass_mol(int igroup, int mol)
+{
+  int groupbit = bitmask[igroup];
+
+  double *mass = atom->mass;
+  double *rmass = atom->rmass;
+  int *mask = atom->mask;
+  int *type = atom->type;
+  int nlocal = atom->nlocal;
+  tagint *molecule = atom->molecule;
+  double one = 0.0;
+
+  if (rmass) {
+    for (int i = 0; i < nlocal; i++)
+      if ((mask[i] & groupbit) && molecule[i]==mol) one += rmass[i];
+  } else {
+    for (int i = 0; i < nlocal; i++)
+      if ((mask[i] & groupbit) && molecule[i]==mol) one += mass[type[i]];
+  }
+
+  double all;
+  MPI_Allreduce(&one,&all,1,MPI_DOUBLE,MPI_SUM,world);
+  return all;
+}
 /* ----------------------------------------------------------------------
    compute the total mass of group of atoms in region
    use either per-type mass or per-atom rmass
@@ -1107,6 +1157,59 @@ void Group::lr(int igroup, int plane, double *slope, double *intercept){
 
 }
 
+/* ----------------------------------------------------------------------
+   compute the center-of-mass coords of group of atoms in the specified molcule
+   masstotal = total mass
+   return center-of-mass coords in cm[]
+   must unwrap atoms to compute center-of-mass correctly
+------------------------------------------------------------------------- */
+
+void Group::xcm_mol(int igroup, int mol, double masstotal, double *cm)
+{
+  int groupbit = bitmask[igroup];
+
+  double **x = atom->x;
+  int *mask = atom->mask;
+  int *type = atom->type;
+  imageint *image = atom->image;
+  double *mass = atom->mass;
+  double *rmass = atom->rmass;
+  int nlocal = atom->nlocal;
+  tagint *molecule = atom->molecule;
+
+  double cmone[3];
+  cmone[0] = cmone[1] = cmone[2] = 0.0;
+
+  double massone;
+  double unwrap[3];
+
+  if (rmass) {
+    for (int i = 0; i < nlocal; i++)
+      if ((mask[i] & groupbit) && molecule[i]==mol) {
+        massone = rmass[i];
+        domain->unmap(x[i],image[i],unwrap);
+        cmone[0] += unwrap[0] * massone;
+        cmone[1] += unwrap[1] * massone;
+        cmone[2] += unwrap[2] * massone;
+      }
+  } else {
+    for (int i = 0; i < nlocal; i++)
+      if ((mask[i] & groupbit) && molecule[i]==mol) {
+        massone = mass[type[i]];
+        domain->unmap(x[i],image[i],unwrap);
+        cmone[0] += unwrap[0] * massone;
+        cmone[1] += unwrap[1] * massone;
+        cmone[2] += unwrap[2] * massone;
+      }
+  }
+
+  MPI_Allreduce(cmone,cm,3,MPI_DOUBLE,MPI_SUM,world);
+  if (masstotal > 0.0) {
+    cm[0] /= masstotal;
+    cm[1] /= masstotal;
+    cm[2] /= masstotal;
+  }
+}
 
 /* ----------------------------------------------------------------------
    compute the center-of-mass coords of group of atoms

@@ -32,7 +32,7 @@ using namespace MathConst;
 
 #define DELTA 10000
 
-enum{THETA,ENG,PHA,VARIABLE};
+enum{THETA,ENG,PHA,OMG,VARIABLE};
 
 /* ---------------------------------------------------------------------- */
 
@@ -67,6 +67,8 @@ ComputeAngleLocalPhase::ComputeAngleLocalPhase(LAMMPS *lmp, int narg, char **arg
       bstyle[nvalues++] = ENG;
     } else if (strcmp(arg[iarg],"phase") == 0) {
       bstyle[nvalues++] = PHA;
+    } else if (strcmp(arg[iarg],"omega") == 0) {
+      bstyle[nvalues++] = OMG;      
     } else if (strncmp(arg[iarg],"v_",2) == 0) {
       bstyle[nvalues++] = VARIABLE;
       int n = strlen(arg[iarg]);
@@ -313,6 +315,11 @@ int ComputeAngleLocalPhase::compute_angles(int flag)
       ptr[n] = angle_area[atom2][i];
     else ptr[n] = 0.0;
     break;
+  case OMG:
+    if (atype>0)
+      ptr[n] = angle->query_omega(atype);
+    else ptr[n] = 0.0;
+    break;    
 	case VARIABLE:
 	  ptr[n] = input->variable->compute_equal(vvar[ivar]);
 	  ivar++;

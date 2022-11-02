@@ -48,6 +48,7 @@ class Angle : protected Pointers {
   virtual void read_restart(FILE *) = 0;
   virtual void write_data(FILE *) {}
   virtual double single(int, int, int, int) = 0;
+  virtual double query_omega(int) {return 0.0;}
   virtual double memory_usage();
 
  protected:
