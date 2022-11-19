@@ -78,7 +78,7 @@ include	Makefile.package.settings
 include	Makefile.package
 
 EXTRA_INC = $(LMP_INC) $(PKG_INC) $(MPI_INC) $(FFT_INC) $(JPG_INC) $(PKG_SYSINC)
-EXTRA_PATH = $(PKG_PATH) $(MPI_PATH) $(FFT_PATH) $(JPG_PATH) $(PKG_SYSPATH) -L/usr/local/Cellar/gcc/9.3.0/lib/gcc/9/
+EXTRA_PATH = $(PKG_PATH) $(MPI_PATH) $(FFT_PATH) $(JPG_PATH) $(PKG_SYSPATH) -L/usr/local/Cellar/gcc/12.2.0/lib/gcc/12/
 EXTRA_LIB = $(PKG_LIB) $(MPI_LIB) $(FFT_LIB) $(JPG_LIB) $(PKG_SYSLIB) -llapack -lgfortran
 EXTRA_CPP_DEPENDS = $(PKG_CPP_DEPENDS)
 EXTRA_LINK_DEPENDS = $(PKG_LINK_DEPENDS)

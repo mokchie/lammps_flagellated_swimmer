@@ -76,6 +76,20 @@ angle_coeff 1 ${Kb} ${b} ${omega} ${theta0} ${skew} ${t0}
 
 _______________________________________________________
 
+angle_harmonic_reciprocal.h
+angle_harmonic_reciprocal.cpp
+
+Almost the same as harmonic_eqvar except that now the formula for the angle is:
+theta = theta0 + b*sin(k*x)*sin(omega*t). 
+
+Usage example:
+angle_style harmonic/eqvar
+angle_coeff 1 ${Kb} ${b} ${omega} ${theta0} ${skew} ${t0}
+
+
+_______________________________________________________
+
+
 angle_harmonic_powconst.h
 angle_harmonic_powconst.cpp
 

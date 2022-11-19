@@ -13,6 +13,7 @@
 #include "angle_harmonic_omega_alternate.h"
 #include "angle_harmonic_omega_rotate_QL.h"
 #include "angle_harmonic_powconst.h"
+#include "angle_harmonic_reciprocal.h"
 #include "angle_harmonic_stochastic_omega.h"
 #include "angle_harmonic_theta_QL.h"
 #include "angle_hybrid.h"
