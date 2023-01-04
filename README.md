@@ -10,7 +10,7 @@ Use the following scripts to include necessary packages:
 
     make yes-molecule
     make yes-user-sdpd-ve
-    make yes-user-sdpdc
+    make yes-user-sdpd
     make yes-user-statistic
 
 =========================================================================
