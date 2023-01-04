@@ -8,45 +8,35 @@ LAMMPS manual for information on building LAMMPS with external
 libraries.
 Use the following scripts to include necessary packages:
 
-`make yes-molecule`
-
-`make yes-user-sdpd-ve`
-
-`make yes-user-sdpdc`
-
-`make yes-user-statistic`
+    make yes-molecule
+    make yes-user-sdpd-ve
+    make yes-user-sdpdc
+    make yes-user-statistic
 
 =========================================================================
 
 1. About the pair styles
 
-pair_sdpdve.h
-
-pair_sdpdve.cpp
-
-pair_sdpdve_2d.h
-
-pair_sdpdve_2d.cpp
+- pair_sdpdve.h
+- pair_sdpdve.cpp
+- pair_sdpdve_2d.h
+- pair_sdpdve_2d.cpp
 
 Viscoelastic sdpd pair style using eigendynamics
 
 ——————————————————————————————————————————————————
 
-pair_sdpdve_no_edyn.h
-
-pair_sdpdve_no_edyn.cpp
-
-pair_sdpdve_no_edyn_2d.h
-
-pair_sdpdve_no_edyn_2d.cpp
+- pair_sdpdve_no_edyn.h
+- pair_sdpdve_no_edyn.cpp
+- pair_sdpdve_no_edyn_2d.h
+- pair_sdpdve_no_edyn_2d.cpp
 
 Viscoelastic sdpd pair style not using the eigendynamics, a bit faster than using the eigendynamics.
 
 ——————————————————————————————————————————————————————————
 
-pair_sdpdve_no_fluc_2d.h
-
-pair_sdpdve_no_fluc_2d.cpp
+- pair_sdpdve_no_fluc_2d.h
+- pair_sdpdve_no_fluc_2d.cpp
 
 Viscoelastic sdpd pair style without fluctuation in the conformation tensor
 
@@ -57,26 +47,24 @@ For pair styles not using the eigendynamics, the corresponding atom style is `sd
 
 Usage:
 
-`atom_style 1 sdpdve/no/edyn`
-
-`pair_style  sdpdve/no/fluc/2d ${P0} ${Pb} ${kappa} $T all ${rc} ${seed} empty ${rho0} ${tau} ${Np}`
-
-`pair_coeff * * sdpdve/no/fluc/2d ${rho0} ${mu} 0 ${rc}`
-
-`fix 1 all nve/sdpdve/no/edyn`
+    atom_style 1 sdpdve/no/edyn
+    pair_style  sdpdve/no/fluc/2d ${P0} ${Pb} ${kappa} $T all ${rc} ${seed} empty ${rho0} ${tau} ${Np}
+    pair_coeff * * sdpdve/no/fluc/2d ${rho0} ${mu} 0 ${rc}
+    fix 1 all nve/sdpdve/no/edyn
 
 =========================================================================
 
 2. About the angle styles
 
-angle_harmonic_stochastic_omega.h
-
-angle_harmonic_stochastic_omega.cpp
+- angle_harmonic_stochastic_omega.h
+- angle_harmonic_stochastic_omega.cpp
 
 Angles are harmonic with their equilibrium angle changing sinusoidally.  And the frequency also changes stochastically
 angle_style harmonic/stochastic/omega
 
-Usage: `angle_coeff * ${Kb} ${b} ${omega_mu} ${omega_sigma} ${theta0} ${skew} ${t0}`
+Usage: 
+
+    angle_coeff * ${Kb} ${b} ${omega_mu} ${omega_sigma} ${theta0} ${skew} ${t0}
 
 The parameter “Individual“  for the atom_style should be >=1 so that the initial phases are read from the data file.
 If Ind=2 the amplitude b is also read from data file, it can be used to model ant-posteriorly asymmetric flagellum.
@@ -98,65 +86,59 @@ The unit of omega is radian/s, that of other angle parameters is angle.
 
 ——————————————————————————————————————————————————————————
 
-angle_harmonic_eqvar.h
-
-angle_harmonic_eqvar.cpp
+- angle_harmonic_eqvar.h
+- angle_harmonic_eqvar.cpp
 
 Almost the same as harmonic_stochastic_omega except now the frequency omega is fixed.
 Usage example:
 
-`angle_style harmonic/eqvar`
-
-`angle_coeff 1 ${Kb} ${b} ${omega} ${theta0} ${skew} ${t0}`
+    angle_style harmonic/eqvar
+    angle_coeff 1 ${Kb} ${b} ${omega} ${theta0} ${skew} ${t0}
 
 ——————————————————————————————————————————————————————————
 
-angle_harmonic_reciprocal.h
-
-angle_harmonic_reciprocal.cpp
+- angle_harmonic_reciprocal.h
+- angle_harmonic_reciprocal.cpp
 
 Almost the same as harmonic_eqvar except that now the formula for the angle is:
 $theta = theta0 + b*sin(k*x)*sin(omega*t)$. 
 
 Usage example:
 
-`angle_style harmonic/eqvar`
-
-`angle_coeff 1 ${Kb} ${b} ${omega} ${theta0} ${skew} ${t0}`
+    angle_style harmonic/eqvar
+    angle_coeff 1 ${Kb} ${b} ${omega} ${theta0} ${skew} ${t0}
 
 
 ——————————————————————————————————————————————————————————
 
 
-angle_harmonic_powconst.h
-
-angle_harmonic_powconst.cpp
+- angle_harmonic_powconst.h
+- angle_harmonic_powconst.cpp
 
 Usage:
 
-`angle_style harmonic/powconst`
-
-`angle_coeff 1 ${Kb} ${b} ${omega} ${theta0} ${skew} ${pw} ${start} c_ID ${pr} ${frac} ${t0}`
+    angle_style harmonic/powconst
+    angle_coeff 1 ${Kb} ${b} ${omega} ${theta0} ${skew} ${pw} ${start} c_ID ${pr} ${frac} ${t0}
 
 This angle style adjust the beating frequency of a flagellum to match its output power with the specified one: “pw”.
-c_ID is the compute ID that computes the output power of the flagellum. See below for the compute group/group/fv
-pr and frac affect how the omega is adjusted every step.
+c_ID is the compute ID that computes the output power of the flagellum. See below for the compute group/group/fv.
 
-If pr>=1, every step the increment or decrement of the frequency is $|omega*frac|$.
+Parameter pr and frac affect how the omega is adjusted every step.
 
-If pr<1, the increment or decrement of the frequency is $|frac|$.
+If pr>=1, every step the increment or decrement of the frequency is `|omega*frac|`.
+
+If pr<1, the increment or decrement of the frequency is `|frac|`.
 
 ===========================================================================
 
 3. Compute and fix 
 
-compute_group_goup_fv.h
-
-compute_group_goup_fv.cpp
+- compute_group_goup_fv.h
+- compute_group_goup_fv.cpp
 
 Usage:
 
-`compute ps1 flagellum1 group/group/fv sol vector yes velocity yes conseronly no`
+    compute ps1 flagellum1 group/group/fv sol vector yes velocity yes conseronly no
 
 It computes the output power of flagellum 1: the total output power of a flagellum is $P = -\sum_{i\le N} \sum_{j\le M} \mathbf{F}_{ij}\mathbf{v}_i$, where $N$ is the number of particles consisting of the flagellum, $M$ is the number of particles of the fluid.
 
@@ -167,27 +149,25 @@ IMPORTANT: the function single_vec() is only defined in pair_sdpd.cpp and pair_s
 
 ——————————————————————————————————————————————————————————
 
-compute_angle_local_phase.h
-
-compute_angle_local_phase.cpp
+- compute_angle_local_phase.h
+- compute_angle_local_phase.cpp
 
 Usage:
 
-`compute phase1 flagellum1 angle/local/phase phase`
+    compute phase1 flagellum1 angle/local/phase phase
 
 It compute the phases of flagellum 1
 
 ——————————————————————————————————————————————————————————
 
-fix_spring_orientation.h
-
-fix_spring_orientation.cpp
+- fix_spring_orientation.h
+- fix_spring_orientation.cpp
 
 Usage:
 
-`fix 4 sheet1 spring/orientation ${Km} ${phi1} xy 0`
+    fix 4 sheet1 spring/orientation ${Km} ${phi1} xy 0
 
-`fix the orientation of the flagellum, it need to call some functions we newly defined in group.cpp (lr() and r2cm())`
+fix the orientation of the flagellum, it need to call some functions we newly defined in group.cpp (lr() and r2cm())
 
 Km: k_spring
 
