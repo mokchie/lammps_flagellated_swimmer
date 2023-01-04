@@ -1,4 +1,4 @@
-# lammps flagellated swimmer
+# lammps for flagellated swimmer simulation using SDPD
 
 0. Installation
 
