@@ -2,7 +2,7 @@
 
 0. Installation
 
-This package uses an external library in lib/linalg which must be
+This modified version of lammps uses an external library in lib/linalg which must be
 compiled before making LAMMPS.  See the lib/linalg/README file and the
 LAMMPS manual for information on building LAMMPS with external
 libraries.
