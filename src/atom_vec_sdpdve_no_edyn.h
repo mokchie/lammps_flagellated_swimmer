@@ -80,6 +80,7 @@ class AtomVecSDPDVENoEdyn : public AtomVec {
   int **bond_type;
   tagint **bond_atom;
   double **bond_length;
+  double **bond_phase;
   int *num_angle;
   int **angle_type;
   tagint **angle_atom1,**angle_atom2,**angle_atom3;

@@ -147,7 +147,8 @@ void AtomVecSDPDVENoEdyn::grow(int n)
   }
   if (individual>=2){
     angle_area2 = memory->grow(atom->angle_area2,nmax,atom->angle_per_atom,"atom:angle_area2");
-  }
+    bond_phase = memory->grow(atom->bond_phase,nmax,atom->bond_per_atom,"atom:bond_phase");
+  }  
 
   if (atom->nextra_grow)
     for (int iextra = 0; iextra < atom->nextra_grow; iextra++)
@@ -194,6 +195,7 @@ void AtomVecSDPDVENoEdyn::grow_reset()
   }
   if (individual>=2)
     angle_area2 = atom->angle_area2;  
+    bond_phase = atom->bond_phase;
 }
 
 /* ----------------------------------------------------------------------
@@ -275,7 +277,9 @@ void AtomVecSDPDVENoEdyn::copy(int i, int j, int delflag)
   if (individual>=2){
     for (k = 0; k < num_angle[j]; k++)
       angle_area2[j][k] = angle_area2[i][k];
-  }  
+    for (k = 0; k < num_bond[j]; k++)
+      bond_phase[j][k] = bond_phase[i][k];
+  }
 
   nspecial[j][0] = nspecial[i][0];
   nspecial[j][1] = nspecial[i][1];
@@ -863,7 +867,9 @@ int AtomVecSDPDVENoEdyn::pack_exchange(int i, double *buf)
   if (individual>=2){
     for (k = 0; k < num_angle[i]; k++)
       buf[m++] = angle_area2[i][k];
-  }  
+    for (k = 0; k < num_bond[i]; k++)
+      buf[m++] = bond_phase[i][k];
+  }
 
   buf[m++] = ubuf(nspecial[i][0]).d;
   buf[m++] = ubuf(nspecial[i][1]).d;
@@ -955,7 +961,9 @@ int AtomVecSDPDVENoEdyn::unpack_exchange(double *buf)
   if (individual>=2){  
     for (k = 0; k < num_angle[nlocal]; k++)
       angle_area2[nlocal][k] = buf[m++];
-  }  
+    for (k = 0; k < num_bond[nlocal]; k++)
+      bond_phase[nlocal][k] = buf[m++];
+  }
 
   nspecial[nlocal][0] = (int) ubuf(buf[m++]).i;
   nspecial[nlocal][1] = (int) ubuf(buf[m++]).i;
@@ -1079,9 +1087,11 @@ int AtomVecSDPDVENoEdyn::pack_restart(int i, double *buf)
       buf[m++] = dihedral_angle[i][k];
   }
   if (individual>=2){
-   for (k = 0; k < num_angle[i]; k++)
+    for (k = 0; k < num_angle[i]; k++)
       buf[m++] = angle_area2[i][k];
-  }    
+    for (k = 0; k < num_bond[i]; k++)
+      buf[m++] = bond_phase[i][k];    
+  }
 
   if (atom->nextra_restart)
     for (int iextra = 0; iextra < atom->nextra_restart; iextra++)
@@ -1176,7 +1186,9 @@ int AtomVecSDPDVENoEdyn::unpack_restart(double *buf)
   if (individual>=2){
     for (k = 0; k < num_angle[nlocal]; k++)
       angle_area2[nlocal][k] = buf[m++];
-  }  
+    for (k = 0; k < num_bond[nlocal]; k++)
+      bond_phase[nlocal][k] = buf[m++];    
+  }
 
   double **extra = atom->extra;
   if (atom->nextra_store) {
@@ -1442,6 +1454,8 @@ bigint AtomVecSDPDVENoEdyn::memory_usage()
   if (individual>=2){
     if (atom->memcheck("angle_area2"))
       bytes += memory->usage(angle_area2,nmax,atom->angle_per_atom);
+    if (atom->memcheck("bond_phase"))
+      bytes += memory->usage(bond_phase,nmax,atom->bond_per_atom);
   }
   return bytes;
 }

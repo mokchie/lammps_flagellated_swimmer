@@ -153,6 +153,7 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   bond_atom = NULL;
   bond_length = NULL;
   bond_length0 = NULL;
+  bond_phase = NULL;
 
   angle_per_atom = extra_angle_per_atom = 0;
   num_angle = NULL;
@@ -385,6 +386,7 @@ Atom::~Atom()
   memory->destroy(bond_atom);
   memory->destroy(bond_length);
   memory->destroy(bond_length0);
+  memory->destroy(bond_phase);
 
   memory->destroy(num_angle);
   memory->destroy(angle_type);
@@ -975,11 +977,12 @@ void Atom::deallocate_topology()
 
   if (individual){
     memory->destroy(atom->bond_length); 
-    memory->destroy(atom->bond_length0);    
+    memory->destroy(atom->bond_length0);
+    memory->destroy(atom->bond_phase);
     memory->destroy(atom->angle_area);
     memory->destroy(atom->angle_area2);
     memory->destroy(atom->dihedral_angle);
-    atom->bond_length = atom->bond_length0 = atom->angle_area = atom->angle_area2 = atom->dihedral_angle = NULL;
+    atom->bond_length = atom->bond_length0 = atom->bond_phase = atom->angle_area = atom->angle_area2 = atom->dihedral_angle = NULL;
   }
 }
 
@@ -1199,16 +1202,19 @@ void Atom::data_bonds(int n, char *buf, int *count, tagint id_offset,
 {
   int m,tmp,itype;
   tagint atom1,atom2;
-  double l0tmp;
+  double l0tmp, phasetmp;
   char *next;
   int newton_bond = force->newton_bond;
 
   for (int i = 0; i < n; i++) {
     next = strchr(buf,'\n');
     *next = '\0';
-    if (individual)
+    if (individual==1)
       sscanf(buf,"%d %d " TAGINT_FORMAT " " TAGINT_FORMAT " %lg",
              &tmp,&itype,&atom1,&atom2,&l0tmp); 
+    else if (individual>=2)
+      sscanf(buf,"%d %d " TAGINT_FORMAT " " TAGINT_FORMAT " %lg" " %lg",
+             &tmp,&itype,&atom1,&atom2,&l0tmp,&phasetmp);
     else 
       sscanf(buf,"%d %d " TAGINT_FORMAT " " TAGINT_FORMAT,
              &tmp,&itype,&atom1,&atom2);
@@ -1232,6 +1238,8 @@ void Atom::data_bonds(int n, char *buf, int *count, tagint id_offset,
           bond_length[m][num_bond[m]] = l0tmp;
           if(bond_length0!=NULL)
             bond_length0[m][num_bond[m]] = l0tmp;
+          if (individual>=2)
+            bond_phase[m][num_bond[m]] = phasetmp;
         }
         num_bond[m]++;
         
@@ -1247,6 +1255,8 @@ void Atom::data_bonds(int n, char *buf, int *count, tagint id_offset,
             bond_length[m][num_bond[m]] = l0tmp;
             if(bond_length0!=NULL)
               bond_length0[m][num_bond[m]] = l0tmp;
+            if (individual>=2)
+              bond_phase[m][num_bond[m]] = phasetmp;
           }
           num_bond[m]++;
         }

@@ -138,6 +138,7 @@ class Atom : protected Pointers {
   int **bond_type;
   tagint **bond_atom;
   double **bond_length, **bond_length0;
+  double **bond_phase;
 
   int *num_angle;
   int **angle_type;

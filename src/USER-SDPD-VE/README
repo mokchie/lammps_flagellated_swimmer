@@ -55,7 +55,7 @@ The parameter “Individual“  for the atom_style should be >=1 so that the ini
 If Ind=2 the amplitude b is also read from data file, it can be used to model ant-posteriorly asymmetric flagellum.
 Kb: energy constant
 b: amplitude of the angle oscillation
-The varying frequency follows the lognormal distribution. It change its value only after one period which is determined by its current frequency.
+The varying frequency follows the lognormal distribution. It changes its value only after one period which is determined by its current frequency.
 omega_mu: mean value of the normal distribution
 omega_sigma^2: variance of the normal distribution
 theta0: a systematic offset on the equilibrium angle, used to model asymmetric flagellum

@@ -128,7 +128,7 @@ void AngleHarmonicEqvar::compute(int eflag, int vflag)
     s = 1.0/s;
 
     // force & energy
-
+    m=-1;
     for (i=0; i<num_angle[i2]; i++){
       if (atom->tag[i1]==angle_atom1[i2][i] && atom->tag[i2]==angle_atom2[i2][i] && atom->tag[i3]==angle_atom3[i2][i]){
         m=i;
