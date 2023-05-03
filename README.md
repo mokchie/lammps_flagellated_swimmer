@@ -13,6 +13,10 @@ Use the following scripts to include necessary packages:
     make yes-user-sdpd
     make yes-user-statistic
 
+In case you also want to use the swelling and erosion package:
+
+    make yes-user-sdpdc
+
 =========================================================================
 
 1. About the pair styles
