@@ -8,6 +8,7 @@
 #include "bond_harmonic.h"
 #include "bond_hybrid.h"
 #include "bond_indivharmonic.h"
+#include "bond_indivharmonic_QL.h"
 #include "bond_indivharmonic_eqvar.h"
 #include "bond_indivharmonic_visc.h"
 #include "bond_morse.h"

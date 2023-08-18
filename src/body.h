@@ -40,7 +40,7 @@ class Body : protected Pointers {
   virtual int pack_border_body(struct AtomVecBody::Bonus *, double *) {return 0;}
   virtual int unpack_border_body(struct AtomVecBody::Bonus *,
                                  double *) {return 0;}
-
+  
   virtual void data_body(int, int, int, int*, double *) = 0;
   virtual int noutrow(int) = 0;
   virtual int noutcol() = 0;

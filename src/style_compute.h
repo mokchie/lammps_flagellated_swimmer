@@ -21,6 +21,8 @@
 #include "compute_dihedral_local.h"
 #include "compute_dipole_chunk.h"
 #include "compute_displace_atom.h"
+#include "compute_dpd.h"
+#include "compute_dpd_atom.h"
 #include "compute_erotate_sphere.h"
 #include "compute_erotate_sphere_atom.h"
 #include "compute_fragment_atom.h"

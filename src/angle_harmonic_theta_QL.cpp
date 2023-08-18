@@ -13,6 +13,7 @@
 
 /* ----------------------------------------------------------------------
    Contributing author: Naveen Michaud-Agrawal (Johns Hopkins U)
+                        Chaojie Mo (BUAA)
 ------------------------------------------------------------------------- */
 
 #include <cmath>
@@ -49,6 +50,7 @@ AngleHarmonicThetaQL::AngleHarmonicThetaQL(LAMMPS *lmp) : Angle(lmp)
   k = NULL;
   b = NULL;
   omega = NULL;
+  theta0min = NULL;
   theta0max = NULL;
   skew = NULL;
   tau = NULL;
@@ -81,6 +83,7 @@ AngleHarmonicThetaQL::~AngleHarmonicThetaQL()
     memory->destroy(k);
     memory->destroy(b);
     memory->destroy(omega); 
+    memory->destroy(theta0min);
     memory->destroy(theta0max);
     memory->destroy(skew);
     memory->destroy(tau);
@@ -190,7 +193,7 @@ void AngleHarmonicThetaQL::compute(int eflag, int vflag)
         first_learn[i] = false;
         dist0[i] = dist[i];
         reward[i] = 0.0;
-        sa[i][0] = int(round((theta0[i]+theta0max[i])/(2*theta0max[i]/(Nl[i]-1))));
+        sa[i][0] = int(round((theta0[i]-theta0min[i])/((theta0max[i]-theta0min[i])/(Nl[i]-1))));
         sa[i][1] = 1; // action = 1 means no action
       }
       else{
@@ -232,11 +235,11 @@ void AngleHarmonicThetaQL::compute(int eflag, int vflag)
         if(rnd>epsilon[i]){
           //sa[i][0] += iqmax-1;
           sa[i][1] = iqmax;
-          theta0[i] = -theta0max[i] + (sa[i][0]+sa[i][1]-1) * (2*theta0max[i]/(Nl[i]-1));
+          theta0[i] = theta0min[i] + (sa[i][0]+sa[i][1]-1) * ((theta0max[i]-theta0min[i])/(Nl[i]-1));
         } else {
           //sa[i][0] += irand-1;
           sa[i][1] = irand;
-          theta0[i] = -theta0max[i] + (sa[i][0]+sa[i][1]-1) * (2*theta0max[i]/(Nl[i]-1));
+          theta0[i] = theta0min[i] + (sa[i][0]+sa[i][1]-1) * ((theta0max[i]-theta0min[i])/(Nl[i]-1));
         }
         if (comm->me==0) printf("realistic action:%d\n",sa[i][1]-1);
       }
@@ -376,6 +379,7 @@ void AngleHarmonicThetaQL::allocate()
   memory->create(k,n+1,"angle:k");
   memory->create(b,n+1,"angle:b");
   memory->create(omega,n+1,"angle:omega");
+  memory->create(theta0min,n+1,"angle:theta0min");
   memory->create(theta0max,n+1,"angle:theta0max");
   memory->create(skew,n+1,"angle:skew");
   memory->create(setflag,n+1,"angle:setflag"); 
@@ -447,7 +451,9 @@ void AngleHarmonicThetaQL::coeff(int narg, char **arg)
   double tau_one = 0.0;
   if (narg>=15)
     tau_one = force->numeric(FLERR,arg[14]);
-
+  double theta0min_one = -theta0max_one;
+  if (narg>=16)
+    theta0min_one = force->numeric(FLERR,arg[15]);
 
   // convert theta0 and b from degrees to radians
 
@@ -456,9 +462,14 @@ void AngleHarmonicThetaQL::coeff(int narg, char **arg)
     k[i] = k_one;
     b[i] = b_one/180.0 * MY_PI;
     omega[i] = omega_one;    
+
+    theta0min[i] = theta0min_one/180.0 * MY_PI;
     theta0max[i] = theta0max_one/180.0 * MY_PI;
-    theta0[i] = 0.0;
+
     Nl[i] = Nl_one;
+
+    theta0[i] = theta0min[i] + int((Nl[i]-1)/2)*((theta0max[i]-theta0min[i])/(Nl[i]-1));
+
     skew[i] = skew_one/180.0 * MY_PI;
     alpha[i] = alpha_one;
     gamma[i] = gamma_one;
@@ -496,6 +507,7 @@ void AngleHarmonicThetaQL::write_restart(FILE *fp)
   fwrite(&k[1],sizeof(double),atom->nangletypes,fp);
   fwrite(&b[1],sizeof(double),atom->nangletypes,fp);
   fwrite(&omega[1],sizeof(double),atom->nangletypes,fp);
+  fwrite(&theta0min[1],sizeof(double),atom->nangletypes,fp);
   fwrite(&theta0max[1],sizeof(double),atom->nangletypes,fp);
   fwrite(&theta0[1],sizeof(double),atom->nangletypes,fp);
   fwrite(&Nl[1],sizeof(int),atom->nangletypes,fp);
@@ -525,6 +537,7 @@ void AngleHarmonicThetaQL::read_restart(FILE *fp)
     fread(&k[1],sizeof(double),atom->nangletypes,fp);
     fread(&b[1],sizeof(double),atom->nangletypes,fp);
     fread(&omega[1],sizeof(double),atom->nangletypes,fp);
+    fread(&theta0min[1],sizeof(double),atom->nangletypes,fp);
     fread(&theta0max[1],sizeof(double),atom->nangletypes,fp);
     fread(&theta0[1],sizeof(double),atom->nangletypes,fp);
     fread(&Nl[1],sizeof(int),atom->nangletypes,fp);
@@ -543,6 +556,7 @@ void AngleHarmonicThetaQL::read_restart(FILE *fp)
   MPI_Bcast(&k[1],atom->nangletypes,MPI_DOUBLE,0,world);
   MPI_Bcast(&b[1],atom->nangletypes,MPI_DOUBLE,0,world);
   MPI_Bcast(&omega[1],atom->nangletypes,MPI_DOUBLE,0,world);
+  MPI_Bcast(&theta0min[1],atom->nangletypes,MPI_DOUBLE,0,world);
   MPI_Bcast(&theta0max[1],atom->nangletypes,MPI_DOUBLE,0,world);
   MPI_Bcast(&theta0[1],atom->nangletypes,MPI_DOUBLE,0,world);  
   MPI_Bcast(&Nl[1],atom->nangletypes,MPI_INT,0,world);
@@ -568,7 +582,18 @@ void AngleHarmonicThetaQL::read_restart(FILE *fp)
 void AngleHarmonicThetaQL::write_data(FILE *fp)
 {
   for (int i = 1; i <= atom->nangletypes; i++)
-    fprintf(fp,"%d %g %g %g %g %d %g %g %g %g %g %g %g %g\n",i,k[i],b[i]/MY_PI*180.0,omega[i],theta0max[i]/MY_PI*180.0,Nl[i],skew[i]/MY_PI*180.0,alpha[i],gamma[i],epsilon[i],xtarget[i],ytarget[i],ztarget[i],tau[i]);
+    fprintf(fp,"%d %g %g %g %g %g %d %g %g %g %g %g %g %g %g\n",i,k[i],b[i]/MY_PI*180.0,omega[i],theta0min[i]/MY_PI*180.0,theta0max[i]/MY_PI*180.0,Nl[i],skew[i]/MY_PI*180.0,alpha[i],gamma[i],epsilon[i],xtarget[i],ytarget[i],ztarget[i],tau[i]);
+}
+void AngleHarmonicThetaQL::write_Qmatrix(FILE *fp)
+{ if (Qallocated) {
+    fprintf(fp,"%lld %d\n",update->ntimestep,atom->nangletypes);
+    for (int i=1; i <= atom->nangletypes; i++){
+      fprintf(fp,"%d %d %g\n",i,Nl[i],theta0[i]);
+      for (int j=0; j<Nl[i]; j++){
+        fprintf(fp,"%d %d %g %g %g\n",i,j,Qmatrix[i][j][0],Qmatrix[i][j][1],Qmatrix[i][j][2]);
+      }
+    }
+  }
 }
 
 /* ---------------------------------------------------------------------- */

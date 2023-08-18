@@ -4,6 +4,7 @@ make yes-molecule
 make yes-granular
 make yes-user-sdpd-ve
 make yes-user-sdpdc
+make yes-user-dpd
 make yes-user-statistic
 
 

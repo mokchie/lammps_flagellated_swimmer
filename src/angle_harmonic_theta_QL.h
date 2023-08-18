@@ -35,10 +35,11 @@ class AngleHarmonicThetaQL : public Angle {
   void write_restart(FILE *);
   void read_restart(FILE *);
   void write_data(FILE *);
+  void write_Qmatrix(FILE *);
   virtual double single(int, int, int, int);
 
  protected:
-  double *k,*b,*omega,*theta0max,*skew,*tau,*alpha,*gamma,*epsilon, *xtarget, *ytarget, *ztarget;
+  double *k,*b,*omega,*theta0min,*theta0max,*skew,*tau,*alpha,*gamma,*epsilon, *xtarget, *ytarget, *ztarget;
   double *theta0;
 
   // alpha is the learning rate; gamma is the far-sighted factor; epsilon is the greedy factor;

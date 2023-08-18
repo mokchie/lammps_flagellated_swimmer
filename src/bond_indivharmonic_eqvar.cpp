@@ -22,6 +22,7 @@
 #include "memory.h"
 #include "error.h"
 #include "update.h"
+#define EPS 1e-6
 
 using namespace LAMMPS_NS;
 
@@ -37,7 +38,9 @@ BondIndivHarmonicEqvar::~BondIndivHarmonicEqvar()
     memory->destroy(setflag);
     memory->destroy(k);
     memory->destroy(r0);
+    memory->destroy(ra);
     memory->destroy(omega);
+    memory->destroy(tau);
   }
 }
 
@@ -94,7 +97,10 @@ void BondIndivHarmonicEqvar::compute(int eflag, int vflag)
 
     rsq = delx*delx + dely*dely + delz*delz;
     r = sqrt(rsq);
-    l0 = bondlist_length[n] + r0[type] * sin(omega[type]*update->ntimestep*update->dt + phi);
+    if (tau[type]>=EPS)
+      l0 = bondlist_length[n] + (1.0-exp(-update->ntimestep*update->dt/tau[type])) * (r0[type] + ra[type] * sin(omega[type]*update->ntimestep*update->dt + phi));
+    else
+      l0 = bondlist_length[n] + r0[type] + ra[type] * sin(omega[type]*update->ntimestep*update->dt + phi);
     dr = r - l0;
     rk = k[type] * dr;
     // printf("indivHarmonic: equilibrium bond %d (particles %d and %d), is %f\n", n, i1, i2, l0);
@@ -131,7 +137,9 @@ void BondIndivHarmonicEqvar::allocate()
 
   memory->create(k,n+1,"bond:k");
   memory->create(r0,n+1,"bond:r0");
+  memory->create(ra,n+1,"bond:ra");
   memory->create(omega,n+1,"bond:omega");
+  memory->create(tau,n+1,"bond:tau");
 
   memory->create(setflag,n+1,"bond:setflag");
   for (int i = 1; i <= n; i++) setflag[i] = 0;
@@ -143,21 +151,30 @@ void BondIndivHarmonicEqvar::allocate()
 
 void BondIndivHarmonicEqvar::coeff(int narg, char **arg)
 {
-  if (narg != 4) error->all(FLERR,"Incorrect args for bond coefficients");
+  if (narg < 4 && narg > 6) error->all(FLERR,"Incorrect args for bond coefficients");
   if (!allocated) allocate();
 
   int ilo,ihi;
   force->bounds(FLERR,arg[0],atom->nbondtypes,ilo,ihi);
 
-  double k_one = force->numeric(FLERR,arg[1]);
-  double r0_one = force->numeric(FLERR,arg[2]);
+  double k_one = force->numeric(FLERR,arg[1]);  
+  double ra_one = force->numeric(FLERR,arg[2]);
   double omega_one = force->numeric(FLERR,arg[3]);
+  double r0_one = 0.0;
+  double tau_one = 0.0;
+  if (narg>=5)
+	  r0_one = force->numeric(FLERR,arg[4]);
+  if (narg>=6)
+    tau_one = force->numeric(FLERR,arg[5]);
+  
 
   int count = 0;
   for (int i = ilo; i <= ihi; i++) {
     k[i] = k_one;
+    ra[i] = ra_one;
     r0[i] = r0_one;
     omega[i] = omega_one;
+    tau[i] = tau_one;
     setflag[i] = 1;
     count++;
   }
@@ -181,8 +198,11 @@ double BondIndivHarmonicEqvar::equilibrium_distance(int i)
 void BondIndivHarmonicEqvar::write_restart(FILE *fp)
 {
   fwrite(&k[1],sizeof(double),atom->nbondtypes,fp);
-  fwrite(&r0[1],sizeof(double),atom->nbondtypes,fp);
+  fwrite(&ra[1],sizeof(double),atom->nbondtypes,fp);
   fwrite(&omega[1],sizeof(double),atom->nbondtypes,fp);
+  fwrite(&r0[1],sizeof(double),atom->nbondtypes,fp);  
+  fwrite(&tau[1],sizeof(double),atom->nbondtypes,fp);
+
 }
 
 /* ----------------------------------------------------------------------
@@ -195,12 +215,16 @@ void BondIndivHarmonicEqvar::read_restart(FILE *fp)
 
   if (comm->me == 0) {
     fread(&k[1],sizeof(double),atom->nbondtypes,fp);
-    fread(&r0[1],sizeof(double),atom->nbondtypes,fp);
+    fread(&ra[1],sizeof(double),atom->nbondtypes,fp);
     fread(&omega[1],sizeof(double),atom->nbondtypes,fp);
+    fread(&r0[1],sizeof(double),atom->nbondtypes,fp);    
+    fread(&tau[1],sizeof(double),atom->nbondtypes,fp); 
   }
   MPI_Bcast(&k[1],atom->nbondtypes,MPI_DOUBLE,0,world);
-  MPI_Bcast(&r0[1],atom->nbondtypes,MPI_DOUBLE,0,world);
+  MPI_Bcast(&ra[1],atom->nbondtypes,MPI_DOUBLE,0,world);
   MPI_Bcast(&omega[1],atom->nbondtypes,MPI_DOUBLE,0,world);
+  MPI_Bcast(&r0[1],atom->nbondtypes,MPI_DOUBLE,0,world);  
+  MPI_Bcast(&tau[1],atom->nbondtypes,MPI_DOUBLE,0,world);
 
   for (int i = 1; i <= atom->nbondtypes; i++) setflag[i] = 1;
 }
@@ -212,7 +236,7 @@ void BondIndivHarmonicEqvar::read_restart(FILE *fp)
 void BondIndivHarmonicEqvar::write_data(FILE *fp)
 {
   for (int i = 1; i <= atom->nbondtypes; i++)
-    fprintf(fp,"%d %g %g %g\n",i,k[i],r0[i],omega[i]);
+    fprintf(fp,"%d %g %g %g %g %g\n",i,k[i],ra[i],omega[i],r0[i],tau[i]);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -221,7 +245,7 @@ double BondIndivHarmonicEqvar::single(int type, double rsq, int i, int j,
                         double &fforce)
 {
   double r = sqrt(rsq);
-  double dr = r - r0[type];
+  double dr = r - ra[type]-r0[type];
   double rk = k[type] * dr;
   fforce = 0;
   if (r > 0.0) fforce = -2.0*rk/r;

@@ -9,6 +9,7 @@
 #include "npair_half_bin_newtoff.h"
 #include "npair_half_bin_newtoff_ghost.h"
 #include "npair_half_bin_newton.h"
+#include "npair_half_bin_newton_ssa.h"
 #include "npair_half_bin_newton_tri.h"
 #include "npair_half_multi_newtoff.h"
 #include "npair_half_multi_newton.h"

@@ -38,7 +38,7 @@ class BondIndivHarmonicEqvar : public Bond {
   double single(int, double, int, int, double &);
 
  protected:
-  double *k,*r0,*omega;
+  double *k,*r0,*ra,*omega,*tau;
 
   void allocate();
 };

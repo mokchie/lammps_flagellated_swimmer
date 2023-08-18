@@ -851,105 +851,12 @@ double PairSDPDVENoEdyn::single(int i, int j, int itype, int jtype, double rsq,
 
 /* ---------------------------------------------------------------------- */
 
-// void PairSDPDVENoEdyn::set_weight()
-// {
-//   //using the quintic spline kernel
-//   int i,j,k,l;
-//   int n = atom->ntypes;
-//   double rr,omega0,h;
- 
-//   if (weight1) { 
-//     memory->destroy(weight1);
-//     weight1 = NULL;
-//   }
-//   if (weight2) { 
-//     memory->destroy(weight2);
-//     weight2 = NULL;
-//   }
-
-//   if (domain->dimension == 3) {
-//       omega0 = 3.0 / (359.0 * M_PI);
-//     } else{
-//       omega0 = 7.0 / (478.0 * M_PI);
-//   }
-
-
-//   rr = -1.0;
-//   for (i = 1; i <= n; i++)
-//     for (j = i; j <= n; j++) 
-//       rr = MAX(rr,cut[i][j]);
-
-
-//   nw_max = static_cast<int> (rr*dr_inv) + 2;
-//   if (nw_max < 1 || nw_max > 600) error->all(FLERR,"Non-positive or too large value for nw_max to initialize weight arrays: PairSDPDVENoEdyn::set_weight.");
-//   memory->create(weight1,n+1,n+1,nw_max,"pair:weight1");
-//   memory->create(weight2,n+1,n+1,nw_max,"pair:weight2");
-
-//   for (i = 1; i <= n; i++)
-//     for (j = i; j <= n; j++){
-//       k = static_cast<int> (cut[i][j]*dr_inv) + 1;
-//       if (k > nw_max) error->all(FLERR,"Error in PairSDPDVENoEdyn::set_weight - k > nw_max");
-
-//       if (cut[i][j] > 0.0){
-//         h = cut[i][j]/3.0;
-//         for (l = 0; l < nw_max; l++){
-//           rr = l*DR/h;
-//           if (rr > 3.0){
-//             weight1[i][j][l] = 0.0;
-//             weight2[i][j][l] = 0.0;
-//           } else{
-//             if (domain->dimension == 3) {
-//               if(rr<=1.0){
-//                 weight1[i][j][l] = omega0/h/h/h*((3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 6.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr) + 15.0*(1.0-rr)*(1.0-rr)*(1.0-rr)*(1.0-rr)*(1.0-rr));
-//                 if(l>0)
-//                   weight2[i][j][l] = omega0/h/h/h/h/h*(5.0*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 30.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr) + 75.0*(1.0-rr)*(1.0-rr)*(1.0-rr)*(1.0-rr))/rr;
-//               } else if(rr<=2.0){
-//                 weight1[i][j][l] = omega0/h/h/h*((3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 6.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr));
-//                 if(l>0)
-//                   weight2[i][j][l] = omega0/h/h/h/h/h*(5.0*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 30.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr))/rr;
-//               } else {
-//                 weight1[i][j][l] = omega0/h/h/h*((3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr));
-//                 if(l>0)
-//                   weight2[i][j][l] = omega0/h/h/h/h/h*(5.0*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr))/rr;
-//               }
-//             } else{
-//               if(rr<=1.0){
-//                 weight1[i][j][l] = omega0/h/h*((3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 6.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr) + 15.0*(1.0-rr)*(1.0-rr)*(1.0-rr)*(1.0-rr)*(1.0-rr));
-//                 if(l>0)
-//                   weight2[i][j][l] = omega0/h/h/h/h*(5.0*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 30.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr) + 75.0*(1.0-rr)*(1.0-rr)*(1.0-rr)*(1.0-rr))/rr;
-//               } else if(rr<=2.0){
-//                 weight1[i][j][l] = omega0/h/h*((3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 6.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr));
-//                 if(l>0)
-//                   weight2[i][j][l] = omega0/h/h/h/h*(5.0*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 30.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr))/rr;
-//               } else {
-//                 weight1[i][j][l] = omega0/h/h*((3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr));
-//                 if(l>0)
-//                   weight2[i][j][l] = omega0/h/h/h/h*(5.0*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr))/rr;
-//               }
-
-//             }
-//           }
-//           weight1[j][i][l] = weight1[i][j][l];
-//           weight2[j][i][l] = weight2[i][j][l];
-//         } 
-//         weight2[i][j][0] = weight2[i][j][1];
-//         weight2[j][i][0] = weight2[j][i][1];
-//       } else{
-//         for (l = 0; l < nw_max; l++){ 
-//           weight1[i][j][l] = 0.0;
-//           weight2[i][j][l] = 0.0;
-//           weight1[j][i][l] = 0.0;
-//           weight2[j][i][l] = 0.0;
-//         }
-//       }
-//     }
-// }
-
 void PairSDPDVENoEdyn::set_weight()
 {
+  //using the quintic spline kernel
   int i,j,k,l;
   int n = atom->ntypes;
-  double rr,al1,al2;
+  double rr,omega0,h;
  
   if (weight1) { 
     memory->destroy(weight1);
@@ -961,17 +868,17 @@ void PairSDPDVENoEdyn::set_weight()
   }
 
   if (domain->dimension == 3) {
-    al1 = 105.0/16.0/M_PI;  
-    al2 = 315.0/4.0/M_PI;
-  } else{
-    al1 = 5.0/M_PI;  
-    al2 = 60.0/M_PI; 
+      omega0 = 3.0 / (359.0 * M_PI);
+    } else{
+      omega0 = 7.0 / (478.0 * M_PI);
   }
+
 
   rr = -1.0;
   for (i = 1; i <= n; i++)
     for (j = i; j <= n; j++) 
       rr = MAX(rr,cut[i][j]);
+
 
   nw_max = static_cast<int> (rr*dr_inv) + 2;
   if (nw_max < 1 || nw_max > 600) error->all(FLERR,"Non-positive or too large value for nw_max to initialize weight arrays: PairSDPDVENoEdyn::set_weight.");
@@ -984,23 +891,49 @@ void PairSDPDVENoEdyn::set_weight()
       if (k > nw_max) error->all(FLERR,"Error in PairSDPDVENoEdyn::set_weight - k > nw_max");
 
       if (cut[i][j] > 0.0){
+        h = cut[i][j]/3.0;
         for (l = 0; l < nw_max; l++){
-          rr = l*DR/cut[i][j];
-          if (rr > 1.0){
+          rr = l*DR/h;
+          if (rr > 3.0){
             weight1[i][j][l] = 0.0;
             weight2[i][j][l] = 0.0;
           } else{
             if (domain->dimension == 3) {
-              weight1[i][j][l] = al1*(1.0 + 3.0*rr)*(1.0-rr)*(1.0-rr)*(1.0-rr)/cutsq[i][j]/cut[i][j];
-              weight2[i][j][l] = al2*(1.0-rr)*(1.0-rr)/cutsq[i][j]/cutsq[i][j]/cut[i][j];
+              if(rr<=1.0){
+                weight1[i][j][l] = omega0/h/h/h*((3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 6.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr) + 15.0*(1.0-rr)*(1.0-rr)*(1.0-rr)*(1.0-rr)*(1.0-rr));
+                if(l>0)
+                  weight2[i][j][l] = omega0/h/h/h/h/h*(5.0*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 30.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr) + 75.0*(1.0-rr)*(1.0-rr)*(1.0-rr)*(1.0-rr))/rr;
+              } else if(rr<=2.0){
+                weight1[i][j][l] = omega0/h/h/h*((3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 6.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr));
+                if(l>0)
+                  weight2[i][j][l] = omega0/h/h/h/h/h*(5.0*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 30.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr))/rr;
+              } else {
+                weight1[i][j][l] = omega0/h/h/h*((3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr));
+                if(l>0)
+                  weight2[i][j][l] = omega0/h/h/h/h/h*(5.0*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr))/rr;
+              }
             } else{
-              weight1[i][j][l] = al1*(1.0 + 3.0*rr)*(1.0-rr)*(1.0-rr)*(1.0-rr)/cutsq[i][j];
-              weight2[i][j][l] = al2*(1.0-rr)*(1.0-rr)/cutsq[i][j]/cutsq[i][j];
+              if(rr<=1.0){
+                weight1[i][j][l] = omega0/h/h*((3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 6.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr) + 15.0*(1.0-rr)*(1.0-rr)*(1.0-rr)*(1.0-rr)*(1.0-rr));
+                if(l>0)
+                  weight2[i][j][l] = omega0/h/h/h/h*(5.0*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 30.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr) + 75.0*(1.0-rr)*(1.0-rr)*(1.0-rr)*(1.0-rr))/rr;
+              } else if(rr<=2.0){
+                weight1[i][j][l] = omega0/h/h*((3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 6.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr));
+                if(l>0)
+                  weight2[i][j][l] = omega0/h/h/h/h*(5.0*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr) - 30.0*(2.0-rr)*(2.0-rr)*(2.0-rr)*(2.0-rr))/rr;
+              } else {
+                weight1[i][j][l] = omega0/h/h*((3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr));
+                if(l>0)
+                  weight2[i][j][l] = omega0/h/h/h/h*(5.0*(3.0-rr)*(3.0-rr)*(3.0-rr)*(3.0-rr))/rr;
+              }
+
             }
           }
           weight1[j][i][l] = weight1[i][j][l];
           weight2[j][i][l] = weight2[i][j][l];
         } 
+        weight2[i][j][0] = weight2[i][j][1];
+        weight2[j][i][0] = weight2[j][i][1];
       } else{
         for (l = 0; l < nw_max; l++){ 
           weight1[i][j][l] = 0.0;
@@ -1011,6 +944,73 @@ void PairSDPDVENoEdyn::set_weight()
       }
     }
 }
+
+// void PairSDPDVENoEdyn::set_weight()
+// {
+//   int i,j,k,l;
+//   int n = atom->ntypes;
+//   double rr,al1,al2;
+ 
+//   if (weight1) { 
+//     memory->destroy(weight1);
+//     weight1 = NULL;
+//   }
+//   if (weight2) { 
+//     memory->destroy(weight2);
+//     weight2 = NULL;
+//   }
+
+//   if (domain->dimension == 3) {
+//     al1 = 105.0/16.0/M_PI;  
+//     al2 = 315.0/4.0/M_PI;
+//   } else{
+//     al1 = 5.0/M_PI;  
+//     al2 = 60.0/M_PI; 
+//   }
+
+//   rr = -1.0;
+//   for (i = 1; i <= n; i++)
+//     for (j = i; j <= n; j++) 
+//       rr = MAX(rr,cut[i][j]);
+
+//   nw_max = static_cast<int> (rr*dr_inv) + 2;
+//   if (nw_max < 1 || nw_max > 600) error->all(FLERR,"Non-positive or too large value for nw_max to initialize weight arrays: PairSDPDVENoEdyn::set_weight.");
+//   memory->create(weight1,n+1,n+1,nw_max,"pair:weight1");
+//   memory->create(weight2,n+1,n+1,nw_max,"pair:weight2");
+
+//   for (i = 1; i <= n; i++)
+//     for (j = i; j <= n; j++){
+//       k = static_cast<int> (cut[i][j]*dr_inv) + 1;
+//       if (k > nw_max) error->all(FLERR,"Error in PairSDPDVENoEdyn::set_weight - k > nw_max");
+
+//       if (cut[i][j] > 0.0){
+//         for (l = 0; l < nw_max; l++){
+//           rr = l*DR/cut[i][j];
+//           if (rr > 1.0){
+//             weight1[i][j][l] = 0.0;
+//             weight2[i][j][l] = 0.0;
+//           } else{
+//             if (domain->dimension == 3) {
+//               weight1[i][j][l] = al1*(1.0 + 3.0*rr)*(1.0-rr)*(1.0-rr)*(1.0-rr)/cutsq[i][j]/cut[i][j];
+//               weight2[i][j][l] = al2*(1.0-rr)*(1.0-rr)/cutsq[i][j]/cutsq[i][j]/cut[i][j];
+//             } else{
+//               weight1[i][j][l] = al1*(1.0 + 3.0*rr)*(1.0-rr)*(1.0-rr)*(1.0-rr)/cutsq[i][j];
+//               weight2[i][j][l] = al2*(1.0-rr)*(1.0-rr)/cutsq[i][j]/cutsq[i][j];
+//             }
+//           }
+//           weight1[j][i][l] = weight1[i][j][l];
+//           weight2[j][i][l] = weight2[i][j][l];
+//         } 
+//       } else{
+//         for (l = 0; l < nw_max; l++){ 
+//           weight1[i][j][l] = 0.0;
+//           weight2[i][j][l] = 0.0;
+//           weight1[j][i][l] = 0.0;
+//           weight2[j][i][l] = 0.0;
+//         }
+//       }
+//     }
+// }
 
 /* ---------------------------------------------------------------------- */
 

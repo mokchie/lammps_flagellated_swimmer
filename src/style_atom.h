@@ -3,6 +3,7 @@
 #include "atom_vec_body.h"
 #include "atom_vec_bond.h"
 #include "atom_vec_charge.h"
+#include "atom_vec_dpd.h"
 #include "atom_vec_ellipsoid.h"
 #include "atom_vec_full.h"
 #include "atom_vec_hybrid.h"

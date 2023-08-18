@@ -47,6 +47,7 @@ class Angle : protected Pointers {
   virtual void write_restart(FILE *) = 0;
   virtual void read_restart(FILE *) = 0;
   virtual void write_data(FILE *) {}
+  virtual void write_Qmatrix(FILE *) {}
   virtual double single(int, int, int, int) = 0;
   virtual double query_omega(int) {return 0.0;}
   virtual double memory_usage();
