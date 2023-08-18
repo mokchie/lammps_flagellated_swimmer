@@ -13,6 +13,10 @@ Use the following scripts to include necessary packages:
     make yes-user-sdpd
     make yes-user-statistic
 
+In case you also want to use the swelling and erosion package:
+
+    make yes-user-sdpdc
+
 =========================================================================
 
 1. About the pair styles
@@ -142,7 +146,7 @@ Usage:
     bond_style indivharmonic/eqvar
     bond_coeff 1 ${Kl} ${ba} ${omega}
 
-Parameter `Kl` is the stiffness of the harmonic bonds. The equilibrium length of the bonds is a function of both time and space: $l_\mathrm{eq} = l_0 + b_a*\sin(k*x+\omega t + \phi)$. Parameter `ba` is the oscillation amplitude, `k` is the wave number, $\omega$ is the angular frequency. Both $l_0$ and $\phi$ are read from the data file. The parameter “Individual“  for the atom_style should be 3.
+Parameter `Kl` is the stiffness of the harmonic bonds. The equilibrium length of the bonds is a function of both time and space: $l_\mathrm{eq} = l_0 + b_a\sin(kx+\omega t + \phi)$. Parameter `ba` is the oscillation amplitude, `k` is the wave number, $\omega$ is the angular frequency. Both $l_0$ and $\phi$ are read from the data file. The parameter “Individual“  for the atom_style should be 3.
 
 4. Compute and fix 
 
