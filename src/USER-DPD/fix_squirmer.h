@@ -160,6 +160,8 @@ class FixSquirmer : public Fix {
   void image_shift();
   void set_xv();
   void set_v();
+  void set_xv_plus_slip();
+  void set_v_plus_slip();  
   void setup_bodies_static();
   void setup_bodies_dynamic();
   void apply_langevin_thermostat();
@@ -167,6 +169,7 @@ class FixSquirmer : public Fix {
   void readfile(int, double *, double **, double **, double **,
                 imageint *, int *);
   void squirmer_slip_velocity(double *, double *, double, double, double *);
+  void squirmer_flow_velocity(double *, double *, double, double, double, double *);  
 };
 
 }

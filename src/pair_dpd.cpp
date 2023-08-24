@@ -60,6 +60,7 @@ PairDPD::~PairDPD()
     memory->destroy(cutsq);
 
     memory->destroy(cut);
+    memory->destroy(cut_rd);
     memory->destroy(a0);
     memory->destroy(gamma);
     memory->destroy(sigma);
@@ -143,7 +144,7 @@ void PairDPD::compute(int eflag, int vflag)
       rsq = delx*delx + dely*dely + delz*delz;
       jtype = type[j];
 
-      if (rsq < cutsq[itype][jtype]) {
+      if (rsq < cutsq[itype][jtype] || rsq < cut_rd[itype][jtype]*cut_rd[itype][jtype]) {
         r = sqrt(rsq);
         if (r < EPSILON) continue;     // r can be 0.0 in DPD systems
         rinv = 1.0/r;
@@ -151,14 +152,19 @@ void PairDPD::compute(int eflag, int vflag)
         delvy = vytmp - v[j][1];
         delvz = vztmp - v[j][2];
         dot = delx*delvx + dely*delvy + delz*delvz;
-        wd = 1.0 - r/cut[itype][jtype];
+        if (r < cut[itype][jtype])
+          wd = 1.0 - r/cut[itype][jtype];
+        else 
+          wd = 0.0;
 #ifdef MTRAND
         randnum = shift*(2.0*mtrand->rand()-1.0);
 #else
         randnum = shift*(2.0*random->uniform()-1.0);
 #endif
-        k = static_cast<int> (r*dr_inv);
-        wdg = (weight[itype][jtype][k+1]-weight[itype][jtype][k])*(r*dr_inv - k) + weight[itype][jtype][k];
+        if (r < cut_rd[itype][jtype]){
+          k = static_cast<int> (r*dr_inv);
+          wdg = (weight[itype][jtype][k+1]-weight[itype][jtype][k])*(r*dr_inv - k) + weight[itype][jtype][k];
+        } else wdg = 0.0;
 
         // conservative force = a0 * wd
         // drag force = -gamma * wd^2 * (delx dot delv) / r
@@ -224,10 +230,12 @@ void PairDPD::allocate()
 
   memory->create(setflag,n+1,n+1,"pair:setflag");
   memory->create(cut,n+1,n+1,"pair:cut");
+  memory->create(cut_rd,n+1,n+1,"pair:cut_rd");
   for (i = 1; i <= n; i++)
     for (j = i; j <= n; j++){
       setflag[i][j] = 0;
       cut[i][j] = 0.0;
+      cut_rd[i][j] = 0.0;
   }
 
   memory->create(cutsq,n+1,n+1,"pair:cutsq");
@@ -276,7 +284,10 @@ void PairDPD::settings(int narg, char **arg)
     int i,j;
     for (i = 1; i <= atom->ntypes; i++)
       for (j = i; j <= atom->ntypes; j++)
-        if (setflag[i][j]) cut[i][j] = cut_global;
+        if (setflag[i][j]) {
+          cut[i][j] = cut_global;
+          cut_rd[i][j] = cut_global;
+        }
   }
 }
 
@@ -286,7 +297,7 @@ void PairDPD::settings(int narg, char **arg)
 
 void PairDPD::coeff(int narg, char **arg)
 {
-  if (narg < 5 || narg > 6)
+  if (narg < 5 || narg > 7)
     error->all(FLERR,"Incorrect args for pair coefficients");
   if (!allocated) allocate();
 
@@ -299,8 +310,9 @@ void PairDPD::coeff(int narg, char **arg)
   double w_exp_one = force->numeric(FLERR,arg[4]);
 
   double cut_one = cut_global;
-  if (narg == 6) cut_one = force->numeric(FLERR,arg[5]);
-
+  double cut_rd_one = cut_global;
+  if (narg >= 6) cut_one = force->numeric(FLERR,arg[5]);
+  if (narg == 7) cut_rd_one = force->numeric(FLERR,arg[6]);
   int count = 0;
   for (int i = ilo; i <= ihi; i++) {
     for (int j = MAX(jlo,i); j <= jhi; j++) {
@@ -308,6 +320,7 @@ void PairDPD::coeff(int narg, char **arg)
       gamma[i][j] = gamma_one;
       w_exp[i][j] = w_exp_one;
       cut[i][j] = cut_one;
+      cut_rd[i][j] = cut_rd_one;
       setflag[i][j] = 1;
       count++;
     }
@@ -346,12 +359,13 @@ double PairDPD::init_one(int i, int j)
   sigma[i][j] = sqrt(2.0*force->boltz*temperature*gamma[i][j]);
 
   cut[j][i] = cut[i][j];
+  cut_rd[j][i] = cut_rd[i][j];
   a0[j][i] = a0[i][j];
   gamma[j][i] = gamma[i][j];
   sigma[j][i] = sigma[i][j];
   w_exp[j][i] = w_exp[i][j];
 
-  return cut[i][j];
+  return MAX(cut[i][j],cut_rd[i][j]);
 }
 
 /* ----------------------------------------------------------------------
@@ -371,6 +385,7 @@ void PairDPD::write_restart(FILE *fp)
         fwrite(&gamma[i][j],sizeof(double),1,fp);
         fwrite(&w_exp[i][j],sizeof(double),1,fp);
         fwrite(&cut[i][j],sizeof(double),1,fp);
+        fwrite(&cut_rd[i][j],sizeof(double),1,fp);
       }
     }
 }
@@ -397,11 +412,13 @@ void PairDPD::read_restart(FILE *fp)
           fread(&gamma[i][j],sizeof(double),1,fp);
           fread(&w_exp[i][j],sizeof(double),1,fp);
           fread(&cut[i][j],sizeof(double),1,fp);
+          fread(&cut_rd[i][j],sizeof(double),1,fp);
         }
         MPI_Bcast(&a0[i][j],1,MPI_DOUBLE,0,world);
         MPI_Bcast(&gamma[i][j],1,MPI_DOUBLE,0,world);
         MPI_Bcast(&w_exp[i][j],1,MPI_DOUBLE,0,world);
         MPI_Bcast(&cut[i][j],1,MPI_DOUBLE,0,world);
+        MPI_Bcast(&cut_rd[i][j],1,MPI_DOUBLE,0,world);
       }
     }
 }
@@ -470,7 +487,7 @@ void PairDPD::write_data_all(FILE *fp)
 {
   for (int i = 1; i <= atom->ntypes; i++)
     for (int j = i; j <= atom->ntypes; j++)
-      fprintf(fp,"%d %d %g %g %g %g\n",i,j,a0[i][j],gamma[i][j],w_exp[i][i],cut[i][j]);
+      fprintf(fp,"%d %d %g %g %g %g %g\n",i,j,a0[i][j],gamma[i][j],w_exp[i][i],cut[i][j],cut_rd[i][j]);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -510,7 +527,7 @@ void PairDPD::set_weight()
   rr = -1.0;
   for (i = 1; i <= n; i++)
     for (j = i; j <= n; j++) 
-      rr = MAX(rr,cut[i][j]);
+      rr = MAX(rr,cut_rd[i][j]);
 
   nw_max = static_cast<int> (rr*dr_inv) + 2;
   if (nw_max < 1 || nw_max > 600) error->all(FLERR,"Non-positive or too large value for nw_max to initialize weight arrays: PairDPD::set_weight.");
@@ -518,14 +535,14 @@ void PairDPD::set_weight()
  
   for (i = 1; i <= n; i++)
     for (j = i; j <= n; j++){
-      k = static_cast<int> (cut[i][j]*dr_inv) + 1;
+      k = static_cast<int> (cut_rd[i][j]*dr_inv) + 1;
       if (k > nw_max) error->all(FLERR,"Error in PairDPD::set_weight - k > nw_max");
       for (l = 0; l < nw_max; l++){
         rr = l*DR;
-        if (rr > cut[i][j])
+        if (rr > cut_rd[i][j])
           wd = 0.0;
         else  
-          wd = 1.0 - rr/cut[i][j];
+          wd = 1.0 - rr/cut_rd[i][j];
         weight[i][j][l] = pow(wd,w_exp[i][j]);
         weight[j][i][l] = weight[i][j][l]; 
       }

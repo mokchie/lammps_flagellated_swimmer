@@ -987,7 +987,7 @@ void FixSquirmer::setup(int vflag)
 
 void FixSquirmer::initial_integrate(int vflag)
 {
-  double dtfm;
+  double dtfm,dtfmom,mmi;
 
   // update v and x of atoms in group
 
@@ -1002,29 +1002,28 @@ void FixSquirmer::initial_integrate(int vflag)
   if (idpd>-1){
     if (idpd == atom->firstgroup) nlocal = atom->nfirst;
 
-    if (rmass) {
-      for (int i = 0; i < nlocal; i++)
-        if ((mask[i] & dpd_group_bit) && body[i]<0) {
-          dtfm = dtf / rmass[i];
-          v[i][0] += dtfm * f[i][0];
-          v[i][1] += dtfm * f[i][1];
-          v[i][2] += dtfm * f[i][2];
-          x[i][0] += dtv * v[i][0];
-          x[i][1] += dtv * v[i][1];
-          x[i][2] += dtv * v[i][2];
-        }
 
-    } else {
-      for (int i = 0; i < nlocal; i++)
-        if (mask[i] & dpd_group_bit) {
-          dtfm = dtf / mass[type[i]];
-          v[i][0] += dtfm * f[i][0];
-          v[i][1] += dtfm * f[i][1];
-          v[i][2] += dtfm * f[i][2];
-          x[i][0] += dtv * v[i][0];
-          x[i][1] += dtv * v[i][1];
-          x[i][2] += dtv * v[i][2];
+
+    for (int i = 0; i < nlocal; i++){
+      if ((mask[i] & dpd_group_bit) && body[i]<0) {
+        if (rmass)
+          mmi = rmass[i];
+        else
+          mmi = mass[type[i]];        
+        dtfm = dtf / mmi;
+        v[i][0] += dtfm * f[i][0];
+        v[i][1] += dtfm * f[i][1];
+        v[i][2] += dtfm * f[i][2];
+        x[i][0] += dtv * v[i][0];
+        x[i][1] += dtv * v[i][1];
+        x[i][2] += dtv * v[i][2];
+        if (atom->omega_flag && atom->torque_flag){
+          dtfmom = dtf / atom->moment[type[i]]; 
+          atom->omega[i][0] += dtfmom * atom->torque[i][0];
+          atom->omega[i][1] += dtfmom * atom->torque[i][1];
+          atom->omega[i][2] += dtfmom * atom->torque[i][2];            
         }
+      }
     }
   }
   if (!fixflag){
@@ -1071,8 +1070,8 @@ void FixSquirmer::initial_integrate(int vflag)
     // set coords/orient and velocity/rotation of atoms in rigid bodies
     // from quarternion and omega
 
-    set_xv();
   }
+  set_xv_plus_slip();  
 }
 
 /* ----------------------------------------------------------------------
@@ -1233,7 +1232,27 @@ void FixSquirmer::squirmer_slip_velocity(double *rs, double *ex, double B1, doub
   //printf("%f,%f,%f\n",v[0],v[1],v[2]);
 }
 
-
+void FixSquirmer::squirmer_flow_velocity(double *r, double *ex, double R, double B1, double beta, double *v){
+  double rm = sqrt(r[0]*r[0] + r[1]*r[1] + r[2]*r[2]);
+  if (rm<R){
+    v[0] = v[1] = v[2] = 0.0;
+  }
+  else{
+    double er[3];
+    er[0] = r[0]/rm;
+    er[1] = r[1]/rm;
+    er[2] = r[2]/rm;
+    double costheta = ex[0]*er[0] + ex[1]*er[1] + ex[2]*er[2];
+    double R2_rm2 = R*R/(rm*rm);
+    double R3_rm3 = R*R2_rm2/rm;
+    double R4_rm4 = R*R3_rm3/rm;
+    double B2 = beta*B1;
+    //printf("costheta=%f\n",costheta);
+    v[0] = B1 * R3_rm3 * (costheta * er[0] - ex[0]) + (R4_rm4 - R2_rm2) * B2 * (1.5*costheta*costheta - 0.5) * er[0] + R4_rm4 * B2 * 3 *  costheta * (costheta*er[0] - ex[0]);
+    v[1] = B1 * R3_rm3 * (costheta * er[1] - ex[1]) + (R4_rm4 - R2_rm2) * B2 * (1.5*costheta*costheta - 0.5) * er[1] + R4_rm4 * B2 * 3 *  costheta * (costheta*er[1] - ex[1]);
+    v[2] = B1 * R3_rm3 * (costheta * er[2] - ex[2]) + (R4_rm4 - R2_rm2) * B2 * (1.5*costheta*costheta - 0.5) * er[2] + R4_rm4 * B2 * 3 *  costheta * (costheta*er[2] - ex[2]);    
+  }
+}
 /* ----------------------------------------------------------------------- */
 
 
@@ -1242,7 +1261,7 @@ void FixSquirmer::squirmer_slip_velocity(double *rs, double *ex, double B1, doub
 void FixSquirmer::final_integrate()
 {
   int ibody;
-  double dtfm;
+  double dtfm,dtfmom,mmi;
   if (!earlyflag && !fixflag) compute_forces_and_torques();  
 
   for (ibody=0; ibody<nbody; ibody++){
@@ -1255,17 +1274,24 @@ void FixSquirmer::final_integrate()
     double **x = atom->x;
     double **v = atom->v;
     double **f = atom->f;
+    imageint *image = atom->image;
     double *rmass = atom->rmass;
     double *mass = atom->mass;
     int *type = atom->type;
     int *mask = atom->mask;
-    int nlocal = atom->nlocal;
+    int nlocal = atom->nlocal;   
     double xhalf[3];
     double xhit[3],vslip[3];
     double xhitn[3];
     double xbcm[3],ori[3];
-    double vold[3],deltap[3],mmi;
+    double vold[3],deltap[3];
     double rhalf;
+    double dxcm,dycm,dzcm,rcm;
+    //double unwrap[3];
+
+    double xprd = domain->xprd;
+    double yprd = domain->yprd;
+    double zprd = domain->zprd;
 
     if (idpd == atom->firstgroup) nlocal = atom->nfirst;
     for (int i=0; i<nlocal; i++){
@@ -1278,29 +1304,69 @@ void FixSquirmer::final_integrate()
           dtfm = dtf / mass[type[i]];
           mmi = mass[type[i]];
         }
+        if (atom->omega_flag && atom->torque_flag){
+          dtfmom = dtf / atom->moment[type[i]];
+          atom->omega[i][0] += dtfmom * atom->torque[i][0];
+          atom->omega[i][1] += dtfmom * atom->torque[i][1];
+          atom->omega[i][2] += dtfmom * atom->torque[i][2]; 
+        }
+        
         v[i][0] += dtfm * f[i][0];
         v[i][1] += dtfm * f[i][1];
         v[i][2] += dtfm * f[i][2];        
+        //domain->unmap(x[i],image[i],unwrap);
         for (ibody=0; ibody<nbody; ibody++){
-          xbcm[0] = xcm[ibody][0];
-          xbcm[1] = xcm[ibody][1];
-          xbcm[2] = xcm[ibody][2];
-          if ((x[i][0]-xbcm[0]) * (x[i][0]-xbcm[0]) + 
-              (x[i][1]-xbcm[1]) * (x[i][1]-xbcm[1]) + 
-              (x[i][2]-xbcm[2]) * (x[i][2]-xbcm[2]) < Rs*Rs){
+          //domain->unmap(xcm[ibody],imagebody[ibody],xbcm);
+          //dxcm = unwrap[0]-xbcm[0];
+          //dycm = unwrap[1]-xbcm[1];
+          //dzcm = unwrap[2]-xbcm[2];
+          dxcm = x[i][0] - xcm[ibody][0];
+          dycm = x[i][1] - xcm[ibody][1];
+          dzcm = x[i][2] - xcm[ibody][2];
+
+          if (domain->boundary[0][0] == 0)
+            dxcm -= round(dxcm/xprd)*xprd;
+          if (domain->boundary[1][0] == 0)
+            dycm -= round(dycm/yprd)*yprd;          
+          if (domain->boundary[2][0] == 0)
+            dzcm -= round(dzcm/zprd)*zprd; 
+
+          rcm = sqrt(dxcm*dxcm + dycm*dycm + dzcm*dzcm);
+          if (rcm < Rs){
             xhalf[0] = x[i][0] - v[i][0]*dtv/2;
             xhalf[1] = x[i][1] - v[i][1]*dtv/2;
-            xhalf[2] = x[i][2] - v[i][2]*dtv/2;       
-            rhalf = sqrt((xhalf[0]-xbcm[0]) * (xhalf[0]-xbcm[0]) + (xhalf[1]-xbcm[1]) * (xhalf[1]-xbcm[1]) + (xhalf[2]-xbcm[2]) * (xhalf[2]-xbcm[2]));
-            xhit[0] = (xhalf[0]-xbcm[0])*Rs/rhalf + xbcm[0];
-            xhit[1] = (xhalf[1]-xbcm[1])*Rs/rhalf + xbcm[1];
-            xhit[2] = (xhalf[2]-xbcm[2])*Rs/rhalf + xbcm[2];
-            x[i][0] = xhit[0];
-            x[i][1] = xhit[1];
-            x[i][2] = xhit[2];
-            xhitn[0] = (xhit[0]-xbcm[0])/Rs;
-            xhitn[1] = (xhit[1]-xbcm[1])/Rs;
-            xhitn[2] = (xhit[2]-xbcm[2])/Rs;
+            xhalf[2] = x[i][2] - v[i][2]*dtv/2;
+            //domain->unmap(xhalf,image[i],unwrap);
+            //dxcm = unwrap[0]-xbcm[0];
+            //dycm = unwrap[1]-xbcm[1];
+            //dzcm = unwrap[2]-xbcm[2];
+            dxcm = xhalf[0] - xcm[ibody][0];
+            dycm = xhalf[1] - xcm[ibody][1];
+            dzcm = xhalf[2] - xcm[ibody][2];
+            if (domain->boundary[0][0] == 0)
+              dxcm -= round(dxcm/xprd)*xprd;
+            if (domain->boundary[1][0] == 0)
+              dycm -= round(dycm/yprd)*yprd;          
+            if (domain->boundary[2][0] == 0)
+              dzcm -= round(dzcm/zprd)*zprd;             
+
+            rhalf = sqrt(dxcm*dxcm + dycm*dycm + dzcm*dzcm);
+
+            //xhit[0] = dxcm*Rs/rhalf + xcm[ibody][0];
+            //xhit[1] = dycm*Rs/rhalf + xcm[ibody][1];
+            //xhit[2] = dzcm*Rs/rhalf + xcm[ibody][2];
+            xhitn[0] = dxcm/rhalf;
+            xhitn[1] = dycm/rhalf;
+            xhitn[2] = dzcm/rhalf;
+            xhit[0] = xhalf[0] + xhitn[0]*(Rs-rhalf);
+            xhit[1] = xhalf[1] + xhitn[1]*(Rs-rhalf);
+            xhit[2] = xhalf[2] + xhitn[2]*(Rs-rhalf);
+
+            x[i][0] = xhit[0];//-xprd*xbox;
+            x[i][1] = xhit[1];//-yprd*ybox;
+            x[i][2] = xhit[2];//-zprd*zbox;
+
+
             //printf("%f, %f, %f\n",xhitn[0],xhitn[1],xhitn[2]);
             MathExtra::matvec(ex_space[ibody],ey_space[ibody],ez_space[ibody],orientation[ibody],ori);
             squirmer_slip_velocity(xhitn,ori,B1,beta,vslip);
@@ -1320,19 +1386,41 @@ void FixSquirmer::final_integrate()
             sum[ibody][1] -= deltap[1]/dtf;
             sum[ibody][2] -= deltap[2]/dtf;
 
-            sum[ibody][3] -= ((xhit[1]-xcm[ibody][1])*deltap[2] - (xhit[2]-xcm[ibody][2])*deltap[1]) / dtf;
-            sum[ibody][4] -= ((xhit[2]-xcm[ibody][2])*deltap[0] - (xhit[0]-xcm[ibody][0])*deltap[2]) / dtf;
-            sum[ibody][5] -= ((xhit[0]-xcm[ibody][0])*deltap[1] - (xhit[1]-xcm[ibody][1])*deltap[0]) / dtf;
-
+            sum[ibody][3] -= (xhitn[1]*Rs*deltap[2] - xhitn[2]*Rs*deltap[1]) / dtf;
+            sum[ibody][4] -= (xhitn[2]*Rs*deltap[0] - xhitn[0]*Rs*deltap[2]) / dtf;
+            sum[ibody][5] -= (xhitn[0]*Rs*deltap[1] - xhitn[1]*Rs*deltap[0]) / dtf;
+            
 
             x[i][0] += v[i][0]*dtv/2;
             x[i][1] += v[i][1]*dtv/2;
             x[i][2] += v[i][2]*dtv/2;
+            //domain->remap(x[i],image[i]);         
             break;
           }
         }
       }
+      // for (ibody=0; ibody<nbody; ibody++){
+      //     dxcm = x[i][0]-xcm[ibody][0];
+      //     dycm = x[i][1]-xcm[ibody][1];
+      //     dzcm = x[i][2]-xcm[ibody][2];
+
+      //     if (domain->boundary[0][0] == 0)
+      //       dxcm -= round(dxcm/xprd)*xprd;
+      //     if (domain->boundary[1][0] == 0)
+      //       dycm -= round(dycm/yprd)*yprd;          
+      //     if (domain->boundary[2][0] == 0)
+      //       dzcm -= round(dzcm/zprd)*zprd; 
+
+      //     rcm = sqrt(dxcm*dxcm + dycm*dycm + dzcm*dzcm);
+      //       if ((mask[i] & dpd_group_bit) && rcm < Rs){
+      //         printf("ndt = %lld\n",update->ntimestep);
+      //         printf("%f\n",rcm);
+      //         printf("%f %f %f\n",x[i][0],x[i][1],x[i][2]);
+      //         printf("%f %f %f\n",v[i][0],v[i][1],v[i][2]);
+      //       }   
+      //     }
     }
+
 
 
   }
@@ -1372,8 +1460,8 @@ void FixSquirmer::final_integrate()
     // set velocity/rotation of atoms in rigid bodies
     // virial is already setup from initial_integrate
 
-    set_v();
   }
+  set_v_plus_slip();
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1734,7 +1822,215 @@ void FixSquirmer::set_xv()
     }
   }
 }
+/* ----------------------------------------------------------------------
+   set space-frame coords and velocity of each atom in each rigid body
+   set orientation and rotation of extended particles
+   x = Q displace + Xcm, mapped back to periodic box
+   v = Vcm + (W cross (x - Xcm)) + v_slip
+------------------------------------------------------------------------- */
 
+void FixSquirmer::set_xv_plus_slip()
+{
+  int ibody;
+  int xbox,ybox,zbox;
+  double x0,x1,x2,v0,v1,v2,fc0,fc1,fc2,massone;
+  double xy,xz,yz;
+  double ione[3],exone[3],eyone[3],ezone[3],vr[6],p[3][3];
+
+  double **x = atom->x;
+  double **v = atom->v;
+  double **f = atom->f;
+  imageint *image = atom->image;
+  double *rmass = atom->rmass;
+  double *mass = atom->mass;
+  int *type = atom->type;
+  int nlocal = atom->nlocal;
+
+  double xprd = domain->xprd;
+  double yprd = domain->yprd;
+  double zprd = domain->zprd;
+  double rl,xsn[3],ori[3],vslip[3];
+  double dxcm,dycm,dzcm;
+  //double unwrap[3],xbcm[3];
+
+  if (triclinic) {
+    xy = domain->xy;
+    xz = domain->xz;
+    yz = domain->yz;
+  }
+
+  // set x and v of each atom
+
+  for (int i = 0; i < nlocal; i++) {
+    if (body[i] < 0) continue;
+    ibody = body[i];
+
+    xbox = (xcmimage[i] & IMGMASK) - IMGMAX;
+    ybox = (xcmimage[i] >> IMGBITS & IMGMASK) - IMGMAX;
+    zbox = (xcmimage[i] >> IMG2BITS) - IMGMAX;
+
+    // save old positions and velocities for virial
+
+    if (evflag) {
+      if (triclinic == 0) {
+        x0 = x[i][0] + xbox*xprd;
+        x1 = x[i][1] + ybox*yprd;
+        x2 = x[i][2] + zbox*zprd;
+      } else {
+        x0 = x[i][0] + xbox*xprd + ybox*xy + zbox*xz;
+        x1 = x[i][1] + ybox*yprd + zbox*yz;
+        x2 = x[i][2] + zbox*zprd;
+      }
+      v0 = v[i][0];
+      v1 = v[i][1];
+      v2 = v[i][2];
+    }
+
+    // x = displacement from center-of-mass, based on body orientation
+    // v = vcm + omega around center-of-mass + slip velocity at the nearest surface point
+
+    MathExtra::matvec(ex_space[ibody],ey_space[ibody],
+                      ez_space[ibody],displace[i],x[i]);
+
+    v[i][0] = omega[ibody][1]*x[i][2] - omega[ibody][2]*x[i][1] +
+      vcm[ibody][0];
+    v[i][1] = omega[ibody][2]*x[i][0] - omega[ibody][0]*x[i][2] +
+      vcm[ibody][1];
+    v[i][2] = omega[ibody][0]*x[i][1] - omega[ibody][1]*x[i][0] +
+      vcm[ibody][2];
+
+    // add center of mass to displacement
+    // map back into periodic box via xbox,ybox,zbox
+    // for triclinic, add in box tilt factors as well
+
+    if (triclinic == 0) {
+      x[i][0] += xcm[ibody][0] - xbox*xprd;
+      x[i][1] += xcm[ibody][1] - ybox*yprd;
+      x[i][2] += xcm[ibody][2] - zbox*zprd;
+    } else {
+      x[i][0] += xcm[ibody][0] - xbox*xprd - ybox*xy - zbox*xz;
+      x[i][1] += xcm[ibody][1] - ybox*yprd - zbox*yz;
+      x[i][2] += xcm[ibody][2] - zbox*zprd;
+    }
+    //domain->unmap(x[i],image[i],unwrap);
+    //domain->unmap(xcm[ibody],imagebody[ibody],xbcm);
+    //dxcm = unwrap[0] - xbcm[0];
+    //dycm = unwrap[1] - xbcm[1];
+    //dzcm = unwrap[2] - xbcm[2];
+    dxcm = x[i][0] - xcm[ibody][0];
+    dycm = x[i][1] - xcm[ibody][1];
+    dzcm = x[i][2] - xcm[ibody][2];
+
+    if (domain->boundary[0][0] == 0)
+      dxcm -= round(dxcm/xprd)*xprd;
+    if (domain->boundary[1][0] == 0)
+      dycm -= round(dycm/yprd)*yprd;          
+    if (domain->boundary[2][0] == 0)
+      dzcm -= round(dzcm/zprd)*zprd; 
+
+    rl = sqrt(dxcm*dxcm + dycm*dycm + dzcm*dzcm);
+    if (rl>TOLERANCE){
+            xsn[0] = dxcm/rl;
+            xsn[1] = dycm/rl;
+            xsn[2] = dzcm/rl;
+            //printf("%f, %f, %f\n",xhitn[0],xhitn[1],xhitn[2]);
+            MathExtra::matvec(ex_space[ibody],ey_space[ibody],ez_space[ibody],orientation[ibody],ori);
+            squirmer_slip_velocity(xsn,ori,B1,beta,vslip);
+            v[i][0] += vslip[0]*rl/Rs;
+            v[i][1] += vslip[1]*rl/Rs;
+            v[i][2] += vslip[2]*rl/Rs;
+
+    }
+
+    // virial = unwrapped coords dotted into body constraint force
+    // body constraint force = implied force due to v change minus f external
+    // assume f does not include forces internal to body
+    // 1/2 factor b/c final_integrate contributes other half
+    // assume per-atom contribution is due to constraint force on that atom
+
+    if (evflag) {
+      if (rmass) massone = rmass[i];
+      else massone = mass[type[i]];
+      fc0 = massone*(v[i][0] - v0)/dtf - f[i][0];
+      fc1 = massone*(v[i][1] - v1)/dtf - f[i][1];
+      fc2 = massone*(v[i][2] - v2)/dtf - f[i][2];
+
+      vr[0] = 0.5*x0*fc0;
+      vr[1] = 0.5*x1*fc1;
+      vr[2] = 0.5*x2*fc2;
+      vr[3] = 0.5*x0*fc1;
+      vr[4] = 0.5*x0*fc2;
+      vr[5] = 0.5*x1*fc2;
+
+      v_tally(1,&i,1.0,vr);
+    }
+  }
+
+  // set orientation, omega, angmom of each extended particle
+
+  if (extended) {
+    double theta_body,theta;
+    double *shape,*quatatom,*inertiaatom;
+
+    AtomVecEllipsoid::Bonus *ebonus;
+    if (avec_ellipsoid) ebonus = avec_ellipsoid->bonus;
+    AtomVecLine::Bonus *lbonus;
+    if (avec_line) lbonus = avec_line->bonus;
+    AtomVecTri::Bonus *tbonus;
+    if (avec_tri) tbonus = avec_tri->bonus;
+    double **omega_one = atom->omega;
+    double **angmom_one = atom->angmom;
+    double **mu = atom->mu;
+    int *ellipsoid = atom->ellipsoid;
+    int *line = atom->line;
+    int *tri = atom->tri;
+
+    for (int i = 0; i < nlocal; i++) {
+      if (body[i] < 0) continue;
+      ibody = body[i];
+
+      if (eflags[i] & SPHERE) {
+        omega_one[i][0] = omega[ibody][0];
+        omega_one[i][1] = omega[ibody][1];
+        omega_one[i][2] = omega[ibody][2];
+      } else if (eflags[i] & ELLIPSOID) {
+        shape = ebonus[ellipsoid[i]].shape;
+        quatatom = ebonus[ellipsoid[i]].quat;
+        MathExtra::quatquat(quat[ibody],orient[i],quatatom);
+        MathExtra::qnormalize(quatatom);
+        ione[0] = EINERTIA*rmass[i] * (shape[1]*shape[1] + shape[2]*shape[2]);
+        ione[1] = EINERTIA*rmass[i] * (shape[0]*shape[0] + shape[2]*shape[2]);
+        ione[2] = EINERTIA*rmass[i] * (shape[0]*shape[0] + shape[1]*shape[1]);
+        MathExtra::q_to_exyz(quatatom,exone,eyone,ezone);
+        MathExtra::omega_to_angmom(omega[ibody],exone,eyone,ezone,ione,
+                                   angmom_one[i]);
+      } else if (eflags[i] & LINE) {
+        if (quat[ibody][3] >= 0.0) theta_body = 2.0*acos(quat[ibody][0]);
+        else theta_body = -2.0*acos(quat[ibody][0]);
+        theta = orient[i][0] + theta_body;
+        while (theta <= MINUSPI) theta += TWOPI;
+        while (theta > MY_PI) theta -= TWOPI;
+        lbonus[line[i]].theta = theta;
+        omega_one[i][0] = omega[ibody][0];
+        omega_one[i][1] = omega[ibody][1];
+        omega_one[i][2] = omega[ibody][2];
+      } else if (eflags[i] & TRIANGLE) {
+        inertiaatom = tbonus[tri[i]].inertia;
+        quatatom = tbonus[tri[i]].quat;
+        MathExtra::quatquat(quat[ibody],orient[i],quatatom);
+        MathExtra::qnormalize(quatatom);
+        MathExtra::q_to_exyz(quatatom,exone,eyone,ezone);
+        MathExtra::omega_to_angmom(omega[ibody],exone,eyone,ezone,
+                                   inertiaatom,angmom_one[i]);
+      }
+      if (eflags[i] & DIPOLE) {
+        MathExtra::quat_to_mat(quat[ibody],p);
+        MathExtra::matvec(p,dorient[i],mu[i]);
+        MathExtra::snormalize3(mu[i][3],mu[i],mu[i]);
+      }
+    }
+  }
+}
 /* ----------------------------------------------------------------------
    set space-frame velocity of each atom in a rigid body
    set omega and angmom of extended particles
@@ -1788,6 +2084,181 @@ void FixSquirmer::set_v()
       vcm[ibody][1];
     v[i][2] = omega[ibody][0]*delta[1] - omega[ibody][1]*delta[0] +
       vcm[ibody][2];
+
+    // virial = unwrapped coords dotted into body constraint force
+    // body constraint force = implied force due to v change minus f external
+    // assume f does not include forces internal to body
+    // 1/2 factor b/c initial_integrate contributes other half
+    // assume per-atom contribution is due to constraint force on that atom
+
+    if (evflag) {
+      if (rmass) massone = rmass[i];
+      else massone = mass[type[i]];
+      fc0 = massone*(v[i][0] - v0)/dtf - f[i][0];
+      fc1 = massone*(v[i][1] - v1)/dtf - f[i][1];
+      fc2 = massone*(v[i][2] - v2)/dtf - f[i][2];
+
+      xbox = (xcmimage[i] & IMGMASK) - IMGMAX;
+      ybox = (xcmimage[i] >> IMGBITS & IMGMASK) - IMGMAX;
+      zbox = (xcmimage[i] >> IMG2BITS) - IMGMAX;
+
+      if (triclinic == 0) {
+        x0 = x[i][0] + xbox*xprd;
+        x1 = x[i][1] + ybox*yprd;
+        x2 = x[i][2] + zbox*zprd;
+      } else {
+        x0 = x[i][0] + xbox*xprd + ybox*xy + zbox*xz;
+        x1 = x[i][1] + ybox*yprd + zbox*yz;
+        x2 = x[i][2] + zbox*zprd;
+      }
+
+      vr[0] = 0.5*x0*fc0;
+      vr[1] = 0.5*x1*fc1;
+      vr[2] = 0.5*x2*fc2;
+      vr[3] = 0.5*x0*fc1;
+      vr[4] = 0.5*x0*fc2;
+      vr[5] = 0.5*x1*fc2;
+
+      v_tally(1,&i,1.0,vr);
+    }
+  }
+
+  // set omega, angmom of each extended particle
+
+  if (extended) {
+    double *shape,*quatatom,*inertiaatom;
+
+    AtomVecEllipsoid::Bonus *ebonus;
+    if (avec_ellipsoid) ebonus = avec_ellipsoid->bonus;
+    AtomVecTri::Bonus *tbonus;
+    if (avec_tri) tbonus = avec_tri->bonus;
+    double **omega_one = atom->omega;
+    double **angmom_one = atom->angmom;
+    int *ellipsoid = atom->ellipsoid;
+    int *tri = atom->tri;
+
+    for (int i = 0; i < nlocal; i++) {
+      if (body[i] < 0) continue;
+      const int ibody = body[i];
+
+      if (eflags[i] & SPHERE) {
+        omega_one[i][0] = omega[ibody][0];
+        omega_one[i][1] = omega[ibody][1];
+        omega_one[i][2] = omega[ibody][2];
+      } else if (eflags[i] & ELLIPSOID) {
+        shape = ebonus[ellipsoid[i]].shape;
+        quatatom = ebonus[ellipsoid[i]].quat;
+        ione[0] = EINERTIA*rmass[i] * (shape[1]*shape[1] + shape[2]*shape[2]);
+        ione[1] = EINERTIA*rmass[i] * (shape[0]*shape[0] + shape[2]*shape[2]);
+        ione[2] = EINERTIA*rmass[i] * (shape[0]*shape[0] + shape[1]*shape[1]);
+        MathExtra::q_to_exyz(quatatom,exone,eyone,ezone);
+        MathExtra::omega_to_angmom(omega[ibody],exone,eyone,ezone,ione,
+                                   angmom_one[i]);
+      } else if (eflags[i] & LINE) {
+        omega_one[i][0] = omega[ibody][0];
+        omega_one[i][1] = omega[ibody][1];
+        omega_one[i][2] = omega[ibody][2];
+      } else if (eflags[i] & TRIANGLE) {
+        inertiaatom = tbonus[tri[i]].inertia;
+        quatatom = tbonus[tri[i]].quat;
+        MathExtra::q_to_exyz(quatatom,exone,eyone,ezone);
+        MathExtra::omega_to_angmom(omega[ibody],exone,eyone,ezone,
+                                   inertiaatom,angmom_one[i]);
+      }
+    }
+  }
+}
+
+
+/* ----------------------------------------------------------------------
+   set space-frame velocity of each atom in a rigid body
+   set omega and angmom of extended particles
+   v = Vcm + (W cross (x - Xcm)) + v_slip
+------------------------------------------------------------------------- */
+
+void FixSquirmer::set_v_plus_slip()
+{
+  int xbox,ybox,zbox;
+  double x0,x1,x2,v0,v1,v2,fc0,fc1,fc2,massone;
+  double xy,xz,yz;
+  double ione[3],exone[3],eyone[3],ezone[3],delta[3],vr[6];
+
+  double **x = atom->x;
+  double **v = atom->v;
+  double **f = atom->f;
+  imageint *image = atom->image;
+
+  double *rmass = atom->rmass;
+  double *mass = atom->mass;
+  int *type = atom->type;
+  int nlocal = atom->nlocal;
+
+  double xprd = domain->xprd;
+  double yprd = domain->yprd;
+  double zprd = domain->zprd;
+
+  double rl,xsn[3],ori[3],vslip[3];
+  double dxcm,dycm,dzcm;
+  //double unwrap[3],xbcm[3];
+
+  if (triclinic) {
+    xy = domain->xy;
+    xz = domain->xz;
+    yz = domain->yz;
+  }
+
+  // set v of each atom
+
+  for (int i = 0; i < nlocal; i++) {
+    if (body[i] < 0) continue;
+    const int ibody = body[i];
+
+    MathExtra::matvec(ex_space[ibody],ey_space[ibody],
+                      ez_space[ibody],displace[i],delta);
+
+    // save old velocities for virial
+
+    if (evflag) {
+      v0 = v[i][0];
+      v1 = v[i][1];
+      v2 = v[i][2];
+    }
+
+    v[i][0] = omega[ibody][1]*delta[2] - omega[ibody][2]*delta[1] +
+      vcm[ibody][0];
+    v[i][1] = omega[ibody][2]*delta[0] - omega[ibody][0]*delta[2] +
+      vcm[ibody][1];
+    v[i][2] = omega[ibody][0]*delta[1] - omega[ibody][1]*delta[0] +
+      vcm[ibody][2];
+    //domain->unmap(x[i],image[i],unwrap);
+    //domain->unmap(xcm[ibody],imagebody[ibody],xbcm);
+    //dxcm = unwrap[0] - xbcm[0];
+    //dycm = unwrap[1] - xbcm[1];
+    //dzcm = unwrap[2] - xbcm[2];
+    dxcm = x[i][0] - xcm[ibody][0];
+    dycm = x[i][1] - xcm[ibody][1];
+    dzcm = x[i][2] - xcm[ibody][2];
+    if (domain->boundary[0][0] == 0)
+      dxcm -= round(dxcm/xprd)*xprd;
+    if (domain->boundary[1][0] == 0)
+      dycm -= round(dycm/yprd)*yprd;          
+    if (domain->boundary[2][0] == 0)
+      dzcm -= round(dzcm/zprd)*zprd; 
+    rl = sqrt(dxcm*dxcm + dycm*dycm + dzcm*dzcm);
+
+    if (rl>TOLERANCE){
+            xsn[0] = dxcm/rl;
+            xsn[1] = dycm/rl;
+            xsn[2] = dzcm/rl;
+            //printf("%f, %f, %f\n",xhitn[0],xhitn[1],xhitn[2]);
+            MathExtra::matvec(ex_space[ibody],ey_space[ibody],ez_space[ibody],orientation[ibody],ori);
+            squirmer_slip_velocity(xsn,ori,B1,beta,vslip);
+            v[i][0] += vslip[0]*rl/Rs;
+            v[i][1] += vslip[1]*rl/Rs;
+            v[i][2] += vslip[2]*rl/Rs;
+
+    }
+
 
     // virial = unwrapped coords dotted into body constraint force
     // body constraint force = implied force due to v change minus f external

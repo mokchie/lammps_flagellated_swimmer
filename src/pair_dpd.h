@@ -45,6 +45,7 @@ class PairDPD : public Pair {
   double cut_global, temperature, dr_inv;
   int seed, nw_max, set_weight_ind;
   double **cut;
+  double **cut_rd;
   double **a0,**gamma;
   double **sigma,**w_exp;
   double ***weight;

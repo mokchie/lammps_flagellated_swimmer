@@ -3,6 +3,7 @@
 const char * LAMMPS_NS::LAMMPS::installed_packages[] = {
 "GRANULAR",
 "MOLECULE",
+"RIGID",
 "USER-DPD",
 "USER-STATISTIC",
  NULL };

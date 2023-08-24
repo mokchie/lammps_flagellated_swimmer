@@ -1,6 +1,7 @@
 #!/bin/sh
 
 make yes-molecule
+make yes-rigid
 make yes-granular
 make yes-user-sdpd-ve
 make yes-user-sdpdc
