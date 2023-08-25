@@ -988,6 +988,8 @@ void FixSquirmer::setup(int vflag)
 void FixSquirmer::initial_integrate(int vflag)
 {
   double dtfm,dtfmom,mmi;
+  double dxcm,dycm,dzcm,rcm,rhalf;
+  int ibody;
 
   // update v and x of atoms in group
 
@@ -999,10 +1001,15 @@ void FixSquirmer::initial_integrate(int vflag)
   int *type = atom->type;
   int *mask = atom->mask;
   int nlocal = atom->nlocal;
+
+  double xprd = domain->xprd;
+  double yprd = domain->yprd;
+  double zprd = domain->zprd;  
+  double xhalf[3];
+  double xhit[3];
+  double xhitn[3];
   if (idpd>-1){
     if (idpd == atom->firstgroup) nlocal = atom->nfirst;
-
-
 
     for (int i = 0; i < nlocal; i++){
       if ((mask[i] & dpd_group_bit) && body[i]<0) {
@@ -1022,6 +1029,53 @@ void FixSquirmer::initial_integrate(int vflag)
           atom->omega[i][0] += dtfmom * atom->torque[i][0];
           atom->omega[i][1] += dtfmom * atom->torque[i][1];
           atom->omega[i][2] += dtfmom * atom->torque[i][2];            
+        }
+        for (ibody=0; ibody<nbody; ibody++){
+          dxcm = x[i][0] - xcm[ibody][0];
+          dycm = x[i][1] - xcm[ibody][1];
+          dzcm = x[i][2] - xcm[ibody][2];
+
+          if (domain->boundary[0][0] == 0)
+            dxcm -= round(dxcm/xprd)*xprd;
+          if (domain->boundary[1][0] == 0)
+            dycm -= round(dycm/yprd)*yprd;          
+          if (domain->boundary[2][0] == 0)
+            dzcm -= round(dzcm/zprd)*zprd; 
+
+          rcm = sqrt(dxcm*dxcm + dycm*dycm + dzcm*dzcm);
+          if (rcm < Rs){
+            xhalf[0] = x[i][0] - v[i][0]*dtv/2;
+            xhalf[1] = x[i][1] - v[i][1]*dtv/2;
+            xhalf[2] = x[i][2] - v[i][2]*dtv/2;
+
+            dxcm = xhalf[0] - xcm[ibody][0];
+            dycm = xhalf[1] - xcm[ibody][1];
+            dzcm = xhalf[2] - xcm[ibody][2];
+
+            if (domain->boundary[0][0] == 0)
+              dxcm -= round(dxcm/xprd)*xprd;
+            if (domain->boundary[1][0] == 0)
+              dycm -= round(dycm/yprd)*yprd;          
+            if (domain->boundary[2][0] == 0)
+              dzcm -= round(dzcm/zprd)*zprd;             
+
+            rhalf = sqrt(dxcm*dxcm + dycm*dycm + dzcm*dzcm);
+
+            //xhit[0] = dxcm*Rs/rhalf + xcm[ibody][0];
+            //xhit[1] = dycm*Rs/rhalf + xcm[ibody][1];
+            //xhit[2] = dzcm*Rs/rhalf + xcm[ibody][2];
+            xhitn[0] = dxcm/rhalf;
+            xhitn[1] = dycm/rhalf;
+            xhitn[2] = dzcm/rhalf;
+            xhit[0] = xhalf[0] + xhitn[0]*(Rs-rhalf);
+            xhit[1] = xhalf[1] + xhitn[1]*(Rs-rhalf);
+            xhit[2] = xhalf[2] + xhitn[2]*(Rs-rhalf);
+
+            x[i][0] = xhit[0];//-xprd*xbox;
+            x[i][1] = xhit[1];//-yprd*ybox;
+            x[i][2] = xhit[2];//-zprd*zbox;
+            break;
+          }
         }
       }
     }
@@ -1280,12 +1334,10 @@ void FixSquirmer::final_integrate()
     int *type = atom->type;
     int *mask = atom->mask;
     int nlocal = atom->nlocal;   
-    double xhalf[3];
-    double xhit[3],vslip[3];
+    double vslip[3];
     double xhitn[3];
     double xbcm[3],ori[3];
     double vold[3],deltap[3];
-    double rhalf;
     double dxcm,dycm,dzcm,rcm;
     //double unwrap[3];
 
@@ -1332,40 +1384,10 @@ void FixSquirmer::final_integrate()
             dzcm -= round(dzcm/zprd)*zprd; 
 
           rcm = sqrt(dxcm*dxcm + dycm*dycm + dzcm*dzcm);
-          if (rcm < Rs){
-            xhalf[0] = x[i][0] - v[i][0]*dtv/2;
-            xhalf[1] = x[i][1] - v[i][1]*dtv/2;
-            xhalf[2] = x[i][2] - v[i][2]*dtv/2;
-            //domain->unmap(xhalf,image[i],unwrap);
-            //dxcm = unwrap[0]-xbcm[0];
-            //dycm = unwrap[1]-xbcm[1];
-            //dzcm = unwrap[2]-xbcm[2];
-            dxcm = xhalf[0] - xcm[ibody][0];
-            dycm = xhalf[1] - xcm[ibody][1];
-            dzcm = xhalf[2] - xcm[ibody][2];
-            if (domain->boundary[0][0] == 0)
-              dxcm -= round(dxcm/xprd)*xprd;
-            if (domain->boundary[1][0] == 0)
-              dycm -= round(dycm/yprd)*yprd;          
-            if (domain->boundary[2][0] == 0)
-              dzcm -= round(dzcm/zprd)*zprd;             
-
-            rhalf = sqrt(dxcm*dxcm + dycm*dycm + dzcm*dzcm);
-
-            //xhit[0] = dxcm*Rs/rhalf + xcm[ibody][0];
-            //xhit[1] = dycm*Rs/rhalf + xcm[ibody][1];
-            //xhit[2] = dzcm*Rs/rhalf + xcm[ibody][2];
-            xhitn[0] = dxcm/rhalf;
-            xhitn[1] = dycm/rhalf;
-            xhitn[2] = dzcm/rhalf;
-            xhit[0] = xhalf[0] + xhitn[0]*(Rs-rhalf);
-            xhit[1] = xhalf[1] + xhitn[1]*(Rs-rhalf);
-            xhit[2] = xhalf[2] + xhitn[2]*(Rs-rhalf);
-
-            x[i][0] = xhit[0];//-xprd*xbox;
-            x[i][1] = xhit[1];//-yprd*ybox;
-            x[i][2] = xhit[2];//-zprd*zbox;
-
+          if ((rcm < Rs+TOLERANCE) && (rcm > Rs-TOLERANCE)){
+            xhitn[0] = dxcm/rcm;
+            xhitn[1] = dycm/rcm;
+            xhitn[2] = dzcm/rcm;
 
             //printf("%f, %f, %f\n",xhitn[0],xhitn[1],xhitn[2]);
             MathExtra::matvec(ex_space[ibody],ey_space[ibody],ez_space[ibody],orientation[ibody],ori);
@@ -1374,9 +1396,9 @@ void FixSquirmer::final_integrate()
             vold[1] = v[i][1];
             vold[2] = v[i][2];
 
-            v[i][0] = omega[ibody][1]*xhit[2] - omega[ibody][2]*xhit[1] + vcm[ibody][0] + vslip[0];
-            v[i][1] = omega[ibody][2]*xhit[0] - omega[ibody][0]*xhit[2] + vcm[ibody][1] + vslip[1];
-            v[i][2] = omega[ibody][0]*xhit[1] - omega[ibody][1]*xhit[0] + vcm[ibody][2] + vslip[2];
+            v[i][0] = omega[ibody][1]*x[i][2] - omega[ibody][2]*x[i][1] + vcm[ibody][0] + vslip[0];
+            v[i][1] = omega[ibody][2]*x[i][0] - omega[ibody][0]*x[i][2] + vcm[ibody][1] + vslip[1];
+            v[i][2] = omega[ibody][0]*x[i][1] - omega[ibody][1]*x[i][0] + vcm[ibody][2] + vslip[2];
 
             deltap[0] = (v[i][0] - vold[0])*mmi;
             deltap[1] = (v[i][1] - vold[1])*mmi;
@@ -1391,34 +1413,14 @@ void FixSquirmer::final_integrate()
             sum[ibody][5] -= (xhitn[0]*Rs*deltap[1] - xhitn[1]*Rs*deltap[0]) / dtf;
             
 
-            x[i][0] += v[i][0]*dtv/2;
-            x[i][1] += v[i][1]*dtv/2;
-            x[i][2] += v[i][2]*dtv/2;
-            domain->remap(x[i],image[i]);         
+            //x[i][0] += v[i][0]*dtv/2;
+            //x[i][1] += v[i][1]*dtv/2;
+            //x[i][2] += v[i][2]*dtv/2;
+            //domain->remap(x[i],image[i]);         
             break;
           }
         }
       }
-      // for (ibody=0; ibody<nbody; ibody++){
-      //     dxcm = x[i][0]-xcm[ibody][0];
-      //     dycm = x[i][1]-xcm[ibody][1];
-      //     dzcm = x[i][2]-xcm[ibody][2];
-
-      //     if (domain->boundary[0][0] == 0)
-      //       dxcm -= round(dxcm/xprd)*xprd;
-      //     if (domain->boundary[1][0] == 0)
-      //       dycm -= round(dycm/yprd)*yprd;          
-      //     if (domain->boundary[2][0] == 0)
-      //       dzcm -= round(dzcm/zprd)*zprd; 
-
-      //     rcm = sqrt(dxcm*dxcm + dycm*dycm + dzcm*dzcm);
-      //       if ((mask[i] & dpd_group_bit) && rcm < Rs){
-      //         printf("ndt = %lld\n",update->ntimestep);
-      //         printf("%f\n",rcm);
-      //         printf("%f %f %f\n",x[i][0],x[i][1],x[i][2]);
-      //         printf("%f %f %f\n",v[i][0],v[i][1],v[i][2]);
-      //       }   
-      //     }
     }
 
 
