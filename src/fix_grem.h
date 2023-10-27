@@ -11,40 +11,39 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
-#ifdef COMPUTE_CLASS
+#ifdef FIX_CLASS
 
-ComputeStyle(hexorder/atom,ComputeHexOrderAtom)
+FixStyle(grem,FixGrem)
 
 #else
 
-#ifndef LMP_COMPUTE_HEXORDER_ATOM_H
-#define LMP_COMPUTE_HEXORDER_ATOM_H
+#ifndef LMP_FIX_GREM_H
+#define LMP_FIX_GREM_H
 
-#include "compute.h"
+#include "fix.h"
 
 namespace LAMMPS_NS {
 
-class ComputeHexOrderAtom : public Compute {
+class FixGrem : public Fix {
  public:
-  ComputeHexOrderAtom(class LAMMPS *, int, char **);
-  ~ComputeHexOrderAtom();
+  FixGrem(class LAMMPS *, int, char **);
+  ~FixGrem();
+  int setmask();
   void init();
-  void init_list(int, class NeighList *);
-  void compute_peratom();
-  double memory_usage();
+  void setup(int);
+  void min_setup(int);
+  void post_force(int);
+  void *extract(const char *, int &);
+  double compute_scalar();
+  double scale_grem,lambda,eta,h0;
+  int pressflag;
 
  private:
-  int nmax,maxneigh,ncol,nnn,ndegree;
-  double cutsq;
-  class NeighList *list;
-  double *distsq;
-  int *nearest;
+  double tbath,pressref;
 
-  double **qnarray;
-
-  void calc_qn_complex(double, double, double&, double&);
-  void calc_qn_trig(double, double, double&, double&);
-  void select2(int, int, double *, int *);
+ protected:
+  char *id_temp,*id_press,*id_ke,*id_pe,*id_nh;
+  class Compute *temperature,*pressure,*ke,*pe;
 };
 
 }
@@ -60,16 +59,26 @@ Self-explanatory.  Check the input script syntax and compare to the
 documentation for the command.  You can use -echo screen as a
 command-line option when running LAMMPS to see the offending line.
 
-E: Compute hexorder/atom requires a pair style be defined
+E: Region ID for fix grem does not exist
 
 Self-explanatory.
 
-E: Compute hexorder/atom cutoff is longer than pairwise cutoff
+E: Variable name for fix grem does not exist
 
-Cannot compute order parameter beyond cutoff.
+Self-explanatory.
 
-W: More than one compute hexorder/atom
+E: Variable for fix grem is invalid style
 
-It is not efficient to use compute hexorder/atom more than once.
+Self-explanatory.
+
+E: Cannot use variable energy with constant force in fix grem
+
+This is because for constant force, LAMMPS can compute the change
+in energy directly.
+
+E: Must use variable energy with fix grem
+
+Must define an energy variable when applying a dynamic
+force during minimization.
 
 */

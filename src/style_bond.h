@@ -6,6 +6,8 @@
 #include "bond_fene_expand.h"
 #include "bond_gromos.h"
 #include "bond_harmonic.h"
+#include "bond_harmonic_shift.h"
+#include "bond_harmonic_shift_cut.h"
 #include "bond_hybrid.h"
 #include "bond_indivharmonic.h"
 #include "bond_indivharmonic_QL.h"

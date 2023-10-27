@@ -5,6 +5,7 @@ const char * LAMMPS_NS::LAMMPS::installed_packages[] = {
 "MOLECULE",
 "RIGID",
 "USER-DPD",
+"USER-MISC",
 "USER-STATISTIC",
  NULL };
 #endif

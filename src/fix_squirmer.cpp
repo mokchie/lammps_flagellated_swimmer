@@ -1008,6 +1008,56 @@ void FixSquirmer::initial_integrate(int vflag)
   double xhalf[3];
   double xhit[3];
   double xhitn[3];
+  for (int ibody = 0; ibody < nbody; ibody++) {
+    if (fixflag){
+      vcm[ibody][0] = 0.0;
+      vcm[ibody][1] = 0.0;
+      vcm[ibody][2] = 0.0;
+      angmom[ibody][0] = 0.0;
+      angmom[ibody][1] = 0.0;
+      angmom[ibody][2] = 0.0;
+
+    } else {
+  // update vcm by 1/2 step
+      dtfm = dtf / masstotal[ibody];
+      vcm[ibody][0] += dtfm * fcm[ibody][0] * fflag[ibody][0];
+      vcm[ibody][1] += dtfm * fcm[ibody][1] * fflag[ibody][1];
+      vcm[ibody][2] += dtfm * fcm[ibody][2] * fflag[ibody][2];
+
+      // update xcm by full step
+
+      xcm[ibody][0] += dtv * vcm[ibody][0];
+      xcm[ibody][1] += dtv * vcm[ibody][1];
+      xcm[ibody][2] += dtv * vcm[ibody][2];
+
+      // update angular momentum by 1/2 step
+
+      angmom[ibody][0] += dtf * torque[ibody][0] * tflag[ibody][0];
+      angmom[ibody][1] += dtf * torque[ibody][1] * tflag[ibody][1];
+      angmom[ibody][2] += dtf * torque[ibody][2] * tflag[ibody][2];
+    }
+
+    // compute omega at 1/2 step from angmom at 1/2 step and current q
+    // update quaternion a full step via Richardson iteration
+    // returns new normalized quaternion, also updated omega at 1/2 step
+    // update ex,ey,ez to reflect new quaternion
+
+    MathExtra::angmom_to_omega(angmom[ibody],ex_space[ibody],ey_space[ibody],
+                               ez_space[ibody],inertia[ibody],omega[ibody]);
+    MathExtra::richardson(quat[ibody],angmom[ibody],omega[ibody],
+                            inertia[ibody],dtq);
+    MathExtra::q_to_exyz(quat[ibody],
+                         ex_space[ibody],ey_space[ibody],ez_space[ibody]);
+  }
+  
+    // set coords/orient and velocity/rotation of atoms in rigid bodies
+    // from quarternion and omega
+
+  // virial setup before call to set_xv  
+  if (vflag) v_setup(vflag);
+    else evflag = 0;  
+
+  set_xv_plus_slip();  
   if (idpd>-1){
     if (idpd == atom->firstgroup) nlocal = atom->nfirst;
 
@@ -1060,13 +1110,13 @@ void FixSquirmer::initial_integrate(int vflag)
               dzcm -= round(dzcm/zprd)*zprd;             
 
             rhalf = sqrt(dxcm*dxcm + dycm*dycm + dzcm*dzcm);
-
             //xhit[0] = dxcm*Rs/rhalf + xcm[ibody][0];
             //xhit[1] = dycm*Rs/rhalf + xcm[ibody][1];
             //xhit[2] = dzcm*Rs/rhalf + xcm[ibody][2];
-            xhitn[0] = dxcm/rhalf;
-            xhitn[1] = dycm/rhalf;
-            xhitn[2] = dzcm/rhalf;
+      	    xhitn[0] = dxcm/rhalf;
+	          xhitn[1] = dycm/rhalf;
+      	    xhitn[2] = dzcm/rhalf;
+
             xhit[0] = xhalf[0] + xhitn[0]*(Rs-rhalf);
             xhit[1] = xhalf[1] + xhitn[1]*(Rs-rhalf);
             xhit[2] = xhalf[2] + xhitn[2]*(Rs-rhalf);
@@ -1079,53 +1129,7 @@ void FixSquirmer::initial_integrate(int vflag)
         }
       }
     }
-  }
-  if (!fixflag){
-    for (int ibody = 0; ibody < nbody; ibody++) {
-    // update vcm by 1/2 step
-      dtfm = dtf / masstotal[ibody];
-      vcm[ibody][0] += dtfm * fcm[ibody][0] * fflag[ibody][0];
-      vcm[ibody][1] += dtfm * fcm[ibody][1] * fflag[ibody][1];
-      vcm[ibody][2] += dtfm * fcm[ibody][2] * fflag[ibody][2];
-
-      // update xcm by full step
-
-      xcm[ibody][0] += dtv * vcm[ibody][0];
-      xcm[ibody][1] += dtv * vcm[ibody][1];
-      xcm[ibody][2] += dtv * vcm[ibody][2];
-
-      // update angular momentum by 1/2 step
-
-      angmom[ibody][0] += dtf * torque[ibody][0] * tflag[ibody][0];
-      angmom[ibody][1] += dtf * torque[ibody][1] * tflag[ibody][1];
-      angmom[ibody][2] += dtf * torque[ibody][2] * tflag[ibody][2];
-
-      // compute omega at 1/2 step from angmom at 1/2 step and current q
-      // update quaternion a full step via Richardson iteration
-      // returns new normalized quaternion, also updated omega at 1/2 step
-      // update ex,ey,ez to reflect new quaternion
-
-      MathExtra::angmom_to_omega(angmom[ibody],ex_space[ibody],ey_space[ibody],
-                                 ez_space[ibody],inertia[ibody],omega[ibody]);
-      if (!fixflag)
-        MathExtra::richardson(quat[ibody],angmom[ibody],omega[ibody],
-                              inertia[ibody],dtq);
-      MathExtra::q_to_exyz(quat[ibody],
-                           ex_space[ibody],ey_space[ibody],ez_space[ibody]);
-    }
-  
-
-
-    // virial setup before call to set_xv
-
-    if (vflag) v_setup(vflag);
-    else evflag = 0;
-
-    // set coords/orient and velocity/rotation of atoms in rigid bodies
-    // from quarternion and omega
-
-  }
-  set_xv_plus_slip();  
+  }  
 }
 
 /* ----------------------------------------------------------------------
@@ -1273,7 +1277,7 @@ void FixSquirmer::compute_forces_and_torques()
 void FixSquirmer::post_force(int /*vflag*/)
 {
   if (langflag) apply_langevin_thermostat();
-  if (earlyflag) compute_forces_and_torques();
+  if (earlyflag && !fixflag) compute_forces_and_torques();
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1396,21 +1400,21 @@ void FixSquirmer::final_integrate()
             vold[1] = v[i][1];
             vold[2] = v[i][2];
 
-            v[i][0] = omega[ibody][1]*x[i][2] - omega[ibody][2]*x[i][1] + vcm[ibody][0] + vslip[0];
-            v[i][1] = omega[ibody][2]*x[i][0] - omega[ibody][0]*x[i][2] + vcm[ibody][1] + vslip[1];
-            v[i][2] = omega[ibody][0]*x[i][1] - omega[ibody][1]*x[i][0] + vcm[ibody][2] + vslip[2];
+            v[i][0] = omega[ibody][1]*xhitn[2]*Rs - omega[ibody][2]*xhitn[1]*Rs + vcm[ibody][0] + vslip[0];
+            v[i][1] = omega[ibody][2]*xhitn[0]*Rs - omega[ibody][0]*xhitn[2]*Rs + vcm[ibody][1] + vslip[1];
+            v[i][2] = omega[ibody][0]*xhitn[1]*Rs - omega[ibody][1]*xhitn[0]*Rs + vcm[ibody][2] + vslip[2];
 
             deltap[0] = (v[i][0] - vold[0])*mmi;
             deltap[1] = (v[i][1] - vold[1])*mmi;
             deltap[2] = (v[i][2] - vold[2])*mmi;
 
-            sum[ibody][0] -= deltap[0]/dtf;
-            sum[ibody][1] -= deltap[1]/dtf;
-            sum[ibody][2] -= deltap[2]/dtf;
+            sum[ibody][0] -= deltap[0]/dtf/2;
+            sum[ibody][1] -= deltap[1]/dtf/2;
+            sum[ibody][2] -= deltap[2]/dtf/2;
 
-            sum[ibody][3] -= (xhitn[1]*Rs*deltap[2] - xhitn[2]*Rs*deltap[1]) / dtf;
-            sum[ibody][4] -= (xhitn[2]*Rs*deltap[0] - xhitn[0]*Rs*deltap[2]) / dtf;
-            sum[ibody][5] -= (xhitn[0]*Rs*deltap[1] - xhitn[1]*Rs*deltap[0]) / dtf;
+            sum[ibody][3] -= (xhitn[1]*Rs*deltap[2] - xhitn[2]*Rs*deltap[1]) / dtf/2;
+            sum[ibody][4] -= (xhitn[2]*Rs*deltap[0] - xhitn[0]*Rs*deltap[2]) / dtf/2;
+            sum[ibody][5] -= (xhitn[0]*Rs*deltap[1] - xhitn[1]*Rs*deltap[0]) / dtf/2;
             
 
             //x[i][0] += v[i][0]*dtv/2;
@@ -1435,6 +1439,13 @@ void FixSquirmer::final_integrate()
     torque_active[ibody][0] = all[ibody][3];
     torque_active[ibody][1] = all[ibody][4];
     torque_active[ibody][2] = all[ibody][5];    
+
+    fcm[ibody][0] += fcm_active[ibody][0];
+    fcm[ibody][1] += fcm_active[ibody][1];
+    fcm[ibody][2] += fcm_active[ibody][2];
+    torque[ibody][0] += torque_active[ibody][0];
+    torque[ibody][1] += torque_active[ibody][1];
+    torque[ibody][2] += torque_active[ibody][2];
   }
 
   // update vcm and angmom
@@ -1445,15 +1456,15 @@ void FixSquirmer::final_integrate()
       // update vcm by 1/2 step
 
       dtfm = dtf / masstotal[ibody];
-      vcm[ibody][0] += dtfm * (fcm[ibody][0] + fcm_active[ibody][0]) * fflag[ibody][0];
-      vcm[ibody][1] += dtfm * (fcm[ibody][1] + fcm_active[ibody][1]) * fflag[ibody][1];
-      vcm[ibody][2] += dtfm * (fcm[ibody][2] + fcm_active[ibody][2]) * fflag[ibody][2];
+      vcm[ibody][0] += dtfm * (fcm[ibody][0]) * fflag[ibody][0];
+      vcm[ibody][1] += dtfm * (fcm[ibody][1]) * fflag[ibody][1];
+      vcm[ibody][2] += dtfm * (fcm[ibody][2]) * fflag[ibody][2];
 
       // update angular momentum by 1/2 step
 
-      angmom[ibody][0] += dtf * (torque[ibody][0] + torque_active[ibody][0]) * tflag[ibody][0];
-      angmom[ibody][1] += dtf * (torque[ibody][1] + torque_active[ibody][1]) * tflag[ibody][1];
-      angmom[ibody][2] += dtf * (torque[ibody][2] + torque_active[ibody][2]) * tflag[ibody][2];
+      angmom[ibody][0] += dtf * torque[ibody][0] * tflag[ibody][0];
+      angmom[ibody][1] += dtf * torque[ibody][1] * tflag[ibody][1];
+      angmom[ibody][2] += dtf * torque[ibody][2] * tflag[ibody][2];
 
       MathExtra::angmom_to_omega(angmom[ibody],ex_space[ibody],ey_space[ibody],
                                  ez_space[ibody],inertia[ibody],omega[ibody]);

@@ -1,5 +1,4 @@
 #!/bin/sh
-
 make yes-molecule
 make yes-rigid
 make yes-granular

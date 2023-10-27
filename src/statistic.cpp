@@ -174,6 +174,7 @@ int Statistic::map_index(double x, double y, double z)
       is = static_cast<int> ((x - xlo)*dxpm1);
       js = static_cast<int> (rr*dypm1);
       ks = static_cast<int> (theta*dzpm1);
+      if (ks>=nz) ks = nz-ks;
       xx = x; yy = y; zz = z;
       ind = 1;
     }
