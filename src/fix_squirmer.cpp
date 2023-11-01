@@ -68,7 +68,7 @@ FixSquirmer::FixSquirmer(LAMMPS *lmp, int narg, char **arg) :
   tflag(NULL), langextra(NULL), sum(NULL), all(NULL),
   remapflag(NULL), xcmimage(NULL), eflags(NULL), orient(NULL),
   dorient(NULL), id_dilate(NULL), id_dpd(NULL), random(NULL), random_ori(NULL), avec_ellipsoid(NULL),
-  avec_line(NULL), avec_tri(NULL), fcm_active(NULL), torque_active(NULL), orientation(NULL)
+  avec_line(NULL), avec_tri(NULL), fcm_active(NULL), torque_active(NULL), orientation(NULL), fp(NULL)
 {
   int i,ibody;
 
@@ -342,7 +342,15 @@ FixSquirmer::FixSquirmer(LAMMPS *lmp, int narg, char **arg) :
   beta = 1.0;
   dpd_group_bit = 0;
   idpd = -1;
+  ffreq = 0;
   inistyle = EX;
+  rho_tq = 0.0;
+  g_tq = 0.0;
+  h_tq = 0.0;
+  e_tq[0] = 1.0;
+  e_tq[1] = 0.0;
+  e_tq[2] = 0.0;
+  resflag = 0;
 
   pcouple = NONE;
   pstyle = ANISO;
@@ -554,6 +562,56 @@ FixSquirmer::FixSquirmer(LAMMPS *lmp, int narg, char **arg) :
                      "Fix rigid squirmer dilate group ID does not exist");
         dpd_group_bit = group->bitmask[idpd];
         iarg += 2;
+    } if (strcmp(arg[iarg],"file") == 0) {
+        if (iarg+3 > narg) error->all(FLERR,"Illegal fix squirmer command");
+        if (me == 0) {
+          fp = fopen(arg[iarg+1],"w");
+          if (fp == NULL) {
+            char str[128];
+            snprintf(str,128,"Cannot open fix squirmer file %s",arg[iarg+1]);
+            error->one(FLERR,str);
+          }
+          ffreq = force->inumeric(FLERR,arg[iarg+2]);
+        }
+        iarg += 3;
+    } if (strcmp(arg[iarg],"restoring") == 0) {
+        if (iarg+5 > narg) error->all(FLERR,"Illegal fix squirmer command");
+        if (strcmp(arg[iarg+1],"x") == 0) {
+          e_tq[0]=1.0;
+          e_tq[1]=0.0;
+          e_tq[2]=0.0;
+        }
+        else if (strcmp(arg[iarg+1],"y") == 0) {
+          e_tq[0]=0.0;
+          e_tq[1]=1.0;
+          e_tq[2]=0.0;
+        }
+        else if (strcmp(arg[iarg+1],"z") == 0) {
+          e_tq[0]=0.0;
+          e_tq[1]=0.0;
+          e_tq[2]=1.0;
+        }
+        else if (strcmp(arg[iarg+1],"-x") == 0) {
+          e_tq[0]=-1.0;
+          e_tq[1]=0.0;
+          e_tq[2]=0.0;
+        }
+        else if (strcmp(arg[iarg+1],"-y") == 0) {
+          e_tq[0]=0.0;
+          e_tq[1]=-1.0;
+          e_tq[2]=0.0;
+        }
+        else if (strcmp(arg[iarg+1],"-z") == 0) {
+          e_tq[0]=0.0;
+          e_tq[1]=0.0;
+          e_tq[2]=-1.0;
+        }
+        else error->all(FLERR,"Illegal fix squirmer command");        
+        rho_tq = force->numeric(FLERR,arg[iarg+2]);
+        g_tq = force->numeric(FLERR,arg[iarg+3]);
+        h_tq = force->numeric(FLERR,arg[iarg+4]);
+        resflag = 1;
+        iarg += 5;
     } else if (strcmp(arg[iarg],"tparam") == 0) {
       if (iarg+4 > narg) error->all(FLERR,"Illegal fix rigid command");
       if (strcmp(style,"rigid/nvt") != 0 && strcmp(style,"rigid/npt") != 0 &&
@@ -633,6 +691,12 @@ FixSquirmer::FixSquirmer(LAMMPS *lmp, int narg, char **arg) :
       iarg += 2;
 
     } else error->all(FLERR,"Illegal fix rigid command");
+  }
+  // print file comment lines
+  if (fp && me == 0 && ffreq) {  
+    fprintf(fp,"# Squirmer position, velocity and orientation\n");
+    fprintf(fp,"# Timestep Number-of-squirmers\n");
+    fprintf(fp,"# ID xcm ycm zcm vxc vyc zyc ex ey ez\n");
   }
 
   // set pstat_flag
@@ -763,6 +827,8 @@ FixSquirmer::~FixSquirmer()
   memory->destroy(sum);
   memory->destroy(all);
   memory->destroy(remapflag);
+
+  if (fp && me == 0) fclose(fp);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1269,6 +1335,17 @@ void FixSquirmer::compute_forces_and_torques()
     torque[ibody][1] = all[ibody][4] + langextra[ibody][4];
     torque[ibody][2] = all[ibody][5] + langextra[ibody][5];
   }
+  if (resflag){
+    double tm = 4.0/3.0*MY_PI*Rs*Rs*Rs*rho_tq*h_tq*g_tq;
+    double ori[3];
+    for (ibody = 0; ibody < nbody; ibody++) {
+      MathExtra::matvec(ex_space[ibody],ey_space[ibody],ez_space[ibody],orientation[ibody],ori);
+      torque[ibody][0] += tm * (ori[1]*e_tq[2] - ori[2]*e_tq[1]);
+      torque[ibody][1] += tm * (ori[2]*e_tq[0] - ori[0]*e_tq[2]);
+      torque[ibody][2] += tm * (ori[0]*e_tq[1] - ori[1]*e_tq[0]);
+    }    
+  }
+
 }
 
 
@@ -1313,6 +1390,21 @@ void FixSquirmer::squirmer_flow_velocity(double *r, double *ex, double R, double
 }
 /* ----------------------------------------------------------------------- */
 
+//write squirmer information to file
+void FixSquirmer::write_to_file(FILE *fp){
+  if(fp && me==0 && update->ntimestep%ffreq==0){
+    double ori[3];
+    fprintf(fp,BIGINT_FORMAT,update->ntimestep);
+    fprintf(fp," %d\n",nbody);
+    int ibody;
+    for (ibody=0; ibody<nbody; ibody++){
+      MathExtra::matvec(ex_space[ibody],ey_space[ibody],ez_space[ibody],orientation[ibody],ori);
+      fprintf(fp,"%d %g %g %g %g %g %g %g %g %g\n",ibody+1,xcm[ibody][0],xcm[ibody][1],xcm[ibody][2],vcm[ibody][0],vcm[ibody][1],vcm[ibody][2],ori[0],ori[1],ori[2]);
+    }
+    fflush(fp);
+  }
+
+}
 
 
 /* ----------------------------------------------------------------------- */
@@ -1341,7 +1433,9 @@ void FixSquirmer::final_integrate()
     double vslip[3];
     double xhitn[3];
     double xbcm[3],ori[3];
+    double vhitp[3];
     double vold[3],deltap[3];
+    double vnorm[3],vn;
     double dxcm,dycm,dzcm,rcm;
     //double unwrap[3];
 
@@ -1399,10 +1493,27 @@ void FixSquirmer::final_integrate()
             vold[0] = v[i][0];
             vold[1] = v[i][1];
             vold[2] = v[i][2];
+            vhitp[0] = omega[ibody][1]*xhitn[2]*Rs - omega[ibody][2]*xhitn[1]*Rs + vcm[ibody][0];
+            vhitp[1] = omega[ibody][2]*xhitn[0]*Rs - omega[ibody][0]*xhitn[2]*Rs + vcm[ibody][1];
+            vhitp[2] = omega[ibody][0]*xhitn[1]*Rs - omega[ibody][1]*xhitn[0]*Rs + vcm[ibody][2];
 
-            v[i][0] = omega[ibody][1]*xhitn[2]*Rs - omega[ibody][2]*xhitn[1]*Rs + vcm[ibody][0] + vslip[0];
-            v[i][1] = omega[ibody][2]*xhitn[0]*Rs - omega[ibody][0]*xhitn[2]*Rs + vcm[ibody][1] + vslip[1];
-            v[i][2] = omega[ibody][0]*xhitn[1]*Rs - omega[ibody][1]*xhitn[0]*Rs + vcm[ibody][2] + vslip[2];
+            // vn = (vold[0]-vhitp[0]) * xhitn[0] + (vold[1]-vhitp[1]) * xhitn[1] + (vold[2]-vhitp[2]) * xhitn[2];
+            // if (vn < 0){
+            //   vnorm[0] = vn * xhitn[0];
+            //   vnorm[1] = vn * xhitn[1];
+            //   vnorm[2] = vn * xhitn[2]; 
+            // }
+            // else{
+            //   vnorm[0] = 0.0;
+            //   vnorm[1] = 0.0;
+            //   vnorm[2] = 0.0;
+            // }
+	          vnorm[0] = 0.0;
+            vnorm[1] = 0.0;
+            vnorm[2] = 0.0;            
+            v[i][0] = vhitp[0] - vnorm[0] + vslip[0];
+            v[i][1] = vhitp[1] - vnorm[1] + vslip[1];
+            v[i][2] = vhitp[2] - vnorm[2] + vslip[2];
 
             deltap[0] = (v[i][0] - vold[0])*mmi;
             deltap[1] = (v[i][1] - vold[1])*mmi;
@@ -1475,6 +1586,7 @@ void FixSquirmer::final_integrate()
 
   }
   set_v_plus_slip();
+  write_to_file(fp);
 }
 
 /* ---------------------------------------------------------------------- */

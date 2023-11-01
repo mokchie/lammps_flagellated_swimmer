@@ -126,6 +126,7 @@ class FixSquirmer : public Fix {
   int langflag;             // 0/1 = no/yes Langevin thermostat
   int randflag;
   int fixflag;
+  int resflag;             // restoring torque flag
 
   int tstat_flag;           // NVT settings
   double t_start,t_stop,t_target;
@@ -147,6 +148,12 @@ class FixSquirmer : public Fix {
   int idpd;               // group id to dpd
 
   double phi,theta;
+
+  FILE *fp;
+  int ffreq;
+
+  double rho_tq,g_tq,h_tq;
+  double e_tq[3];
 
   class RanMars *random;
   class RanMars *random_ori;
@@ -170,6 +177,7 @@ class FixSquirmer : public Fix {
                 imageint *, int *);
   void squirmer_slip_velocity(double *, double *, double, double, double *);
   void squirmer_flow_velocity(double *, double *, double, double, double, double *);  
+  void write_to_file(FILE *);
 };
 
 }
