@@ -81,6 +81,7 @@ FixSquirmer::FixSquirmer(LAMMPS *lmp, int narg, char **arg) :
   create_attribute = 1;
   dof_flag = 1;
   enforce2d_flag = 1;
+  resflag = 0;
 
 
   MPI_Comm_rank(world,&me);
@@ -350,7 +351,6 @@ FixSquirmer::FixSquirmer(LAMMPS *lmp, int narg, char **arg) :
   e_tq[0] = 1.0;
   e_tq[1] = 0.0;
   e_tq[2] = 0.0;
-  resflag = 0;
 
   pcouple = NONE;
   pstyle = ANISO;
@@ -562,7 +562,7 @@ FixSquirmer::FixSquirmer(LAMMPS *lmp, int narg, char **arg) :
                      "Fix rigid squirmer dilate group ID does not exist");
         dpd_group_bit = group->bitmask[idpd];
         iarg += 2;
-    } if (strcmp(arg[iarg],"file") == 0) {
+    } else if (strcmp(arg[iarg],"file") == 0) {
         if (iarg+3 > narg) error->all(FLERR,"Illegal fix squirmer command");
         if (me == 0) {
           fp = fopen(arg[iarg+1],"w");
@@ -574,7 +574,7 @@ FixSquirmer::FixSquirmer(LAMMPS *lmp, int narg, char **arg) :
           ffreq = force->inumeric(FLERR,arg[iarg+2]);
         }
         iarg += 3;
-    } if (strcmp(arg[iarg],"restoring") == 0) {
+    } else if (strcmp(arg[iarg],"restoring") == 0) {
         if (iarg+5 > narg) error->all(FLERR,"Illegal fix squirmer command");
         if (strcmp(arg[iarg+1],"x") == 0) {
           e_tq[0]=1.0;
@@ -1340,9 +1340,9 @@ void FixSquirmer::compute_forces_and_torques()
     double ori[3];
     for (ibody = 0; ibody < nbody; ibody++) {
       MathExtra::matvec(ex_space[ibody],ey_space[ibody],ez_space[ibody],orientation[ibody],ori);
-      torque[ibody][0] += tm * (ori[1]*e_tq[2] - ori[2]*e_tq[1]);
-      torque[ibody][1] += tm * (ori[2]*e_tq[0] - ori[0]*e_tq[2]);
-      torque[ibody][2] += tm * (ori[0]*e_tq[1] - ori[1]*e_tq[0]);
+      torque[ibody][0] += -tm * (ori[1]*e_tq[2] - ori[2]*e_tq[1]);
+      torque[ibody][1] += -tm * (ori[2]*e_tq[0] - ori[0]*e_tq[2]);
+      torque[ibody][2] += -tm * (ori[0]*e_tq[1] - ori[1]*e_tq[0]);
     }    
   }
 
