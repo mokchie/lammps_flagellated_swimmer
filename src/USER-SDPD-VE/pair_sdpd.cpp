@@ -218,12 +218,15 @@ void PairSDPD::compute(int eflag, int vflag)
     jnum = numneigh[i];
 
     if (mask[i] & groupbit){
-      wd = rho[i]/rho0[itype][itype];
-      p_i = wd;
-      for (k = 0; k < g_exp-1; k++)
-        p_i *= wd;
-      p_i = p0*p_i + bb;
-      //p_i = p0*pow(rho[i]/rho0[itype][itype],g_exp) + bb;
+      if(mask[i] & groupbit_cons) p_i = 0.0;
+      else{
+        wd = rho[i]/rho0[itype][itype];
+        p_i = wd;
+        for (k = 0; k < g_exp-1; k++)
+          p_i *= wd;
+        p_i = p0*p_i + bb;
+        //p_i = p0*pow(rho[i]/rho0[itype][itype],g_exp) + bb;
+      }
 
       if (n_stress)
         for (k = 0; k < n_stress; k++){
@@ -245,12 +248,15 @@ void PairSDPD::compute(int eflag, int vflag)
           jtype = type[j];
 
           if (rsq < cutsq[itype][jtype]) {
-            wd = rho[j]/rho0[jtype][jtype];
-            p_j = wd;
-            for (k = 0; k < g_exp-1; k++)
-              p_j *= wd;
-            p_j = p0*p_j + bb;
-            //p_j = p0*pow(rho[j]/rho0[jtype][jtype],g_exp) + bb;
+            if (mask[j] & groupbit_cons) p_j = 0.0;
+            else{
+              wd = rho[j]/rho0[jtype][jtype];
+              p_j = wd;
+              for (k = 0; k < g_exp-1; k++)
+                p_j *= wd;
+              p_j = p0*p_j + bb;
+              //p_j = p0*pow(rho[j]/rho0[jtype][jtype],g_exp) + bb;
+            }
 
             r = sqrt(rsq);
             if (r < EPSILON) continue;     // r can be 0.0 in SDPD systems
@@ -375,7 +381,7 @@ void PairSDPD::settings(int narg, char **arg)
   long unsigned int seed2;
   int grph;
 
-  if (narg != 9) error->all(FLERR,"Illegal pair_style command");
+  if (narg < 9) error->all(FLERR,"Illegal pair_style command");
 
   p0 = force->numeric(FLERR,arg[0]);
   bb = force->numeric(FLERR,arg[1]);
@@ -390,6 +396,12 @@ void PairSDPD::settings(int narg, char **arg)
   if (grph == -1) error->all(FLERR,"Could not find group_rho ID in sdpd");
   groupbit_rho = group->bitmask[grph];
   rho_reset = force->numeric(FLERR,arg[8]);
+
+  if (narg>=10){
+    grph = group->find(arg[9]);
+    if (grph == -1) error->all(FLERR,"Could not find group_cons ID in SDPD");
+    groupbit_cons = group->bitmask[grph];
+  } else groupbit_cons = 0;
 
   // initialize Marsaglia RNG with processor-unique seed
 
@@ -547,6 +559,7 @@ void PairSDPD::write_restart_settings(FILE *fp)
   fwrite(&seed,sizeof(int),1,fp);
   fwrite(&groupbit_rho,sizeof(int),1,fp);
   fwrite(&rho_reset,sizeof(double),1,fp);
+  fwrite(&groupbit_cons,sizeof(int),1,fp);
   fwrite(&mix_flag,sizeof(int),1,fp);
 }
 
@@ -568,6 +581,7 @@ void PairSDPD::read_restart_settings(FILE *fp)
     fread(&seed,sizeof(int),1,fp);
     fread(&groupbit_rho,sizeof(int),1,fp);
     fread(&rho_reset,sizeof(double),1,fp);
+    fread(&groupbit_cons,sizeof(int),1,fp);
     fread(&mix_flag,sizeof(int),1,fp);
   }
   MPI_Bcast(&p0,1,MPI_DOUBLE,0,world);
@@ -579,6 +593,7 @@ void PairSDPD::read_restart_settings(FILE *fp)
   MPI_Bcast(&seed,1,MPI_INT,0,world);
   MPI_Bcast(&groupbit_rho,1,MPI_INT,0,world);
   MPI_Bcast(&rho_reset,1,MPI_DOUBLE,0,world);
+  MPI_Bcast(&groupbit_cons,1,MPI_INT,0,world);
   MPI_Bcast(&mix_flag,1,MPI_INT,0,world);
 
   // initialize Marsaglia RNG with processor-unique seed

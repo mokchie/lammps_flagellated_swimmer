@@ -42,6 +42,7 @@ class PairSDPD : public Pair {
 
  protected:
   int seed,nw_max,set_weight_ind,g_exp,groupbit,groupbit_rho,num_fix_bc,init_fix;
+  int groupbit_cons;
   int *list_fix_bc;
   double cut_global,temperature,p0,bb,dr_inv,rho_reset;
   double **cut, **eta, **rho0;

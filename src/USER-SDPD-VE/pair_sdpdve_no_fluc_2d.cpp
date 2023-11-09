@@ -467,7 +467,7 @@ void PairSDPDVENoFluc2D::compute(int eflag, int vflag)
 
 
 
-  // columnwisely store the conformation tensor into the eigenvec array, only the upper trianglar part is needed
+  // columnwisely store the conformation tensor into the eigenvec array, only the upper triangular part is needed
   for(i=0; i<nlocal; i++){
   //   for(j=0; j<2; j++){
   //     for(k=0; k<2; k++){

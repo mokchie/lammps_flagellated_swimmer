@@ -281,7 +281,11 @@ void PairSDPD::compute(int eflag, int vflag)
 
             gam = r20_7*eta[itype][jtype]*wd/rho[i]/rho[j];
             sig = 2.0*sqrt(temperature*gam)*dtinvsqrt;
-            fpair = (p_i/rho[i]/rho[i] + p_j/rho[j]/rho[j])*wd; // conservative force
+            if ((mask[i] & groupbit_cons) || (mask[j] & groupbit_cons)){
+              fpair = (p_i/rho[i]/rho[i] + p_j/rho[j]/rho[j])*wd; // conservative force
+            } else {
+              fpair = 0.0; //conservative force is turn off for the group specified by groupcons, this facility is for squirmer model
+            }
             fpair -= gam*dot*rinv;  // drag force 
             fpair += sig*wrr[3]*rinv;  // random force
             fpair *= factor_dpd;
@@ -375,7 +379,7 @@ void PairSDPD::settings(int narg, char **arg)
   long unsigned int seed2;
   int grph;
 
-  if (narg != 9) error->all(FLERR,"Illegal pair_style command");
+  if (narg < 9) error->all(FLERR,"Illegal pair_style command");
 
   p0 = force->numeric(FLERR,arg[0]);
   bb = force->numeric(FLERR,arg[1]);
@@ -390,6 +394,12 @@ void PairSDPD::settings(int narg, char **arg)
   if (grph == -1) error->all(FLERR,"Could not find group_rho ID in sdpd");
   groupbit_rho = group->bitmask[grph];
   rho_reset = force->numeric(FLERR,arg[8]);
+
+  if (narg>=10){
+    grph = group->find(arg[9]);
+    if (grph == -1) error->all(FLERR,"Could not find group_cons ID in SDPD");
+    groupbit_cons = group->bitmask[grph];
+  } else groupbit_cons = 0;
 
   // initialize Marsaglia RNG with processor-unique seed
 
@@ -547,6 +557,7 @@ void PairSDPD::write_restart_settings(FILE *fp)
   fwrite(&seed,sizeof(int),1,fp);
   fwrite(&groupbit_rho,sizeof(int),1,fp);
   fwrite(&rho_reset,sizeof(double),1,fp);
+  fwrite(&groupbit_cons,sizeof(int),1,fp);
   fwrite(&mix_flag,sizeof(int),1,fp);
 }
 
@@ -568,6 +579,7 @@ void PairSDPD::read_restart_settings(FILE *fp)
     fread(&seed,sizeof(int),1,fp);
     fread(&groupbit_rho,sizeof(int),1,fp);
     fread(&rho_reset,sizeof(double),1,fp);
+    fread(&groupbit_cons,sizeof(int),1,fp);
     fread(&mix_flag,sizeof(int),1,fp);
   }
   MPI_Bcast(&p0,1,MPI_DOUBLE,0,world);
@@ -579,6 +591,7 @@ void PairSDPD::read_restart_settings(FILE *fp)
   MPI_Bcast(&seed,1,MPI_INT,0,world);
   MPI_Bcast(&groupbit_rho,1,MPI_INT,0,world);
   MPI_Bcast(&rho_reset,1,MPI_DOUBLE,0,world);
+  MPI_Bcast(&groupbit_cons,1,MPI_INT,0,world);
   MPI_Bcast(&mix_flag,1,MPI_INT,0,world);
 
   // initialize Marsaglia RNG with processor-unique seed
