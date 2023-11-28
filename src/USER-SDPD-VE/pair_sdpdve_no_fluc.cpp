@@ -352,7 +352,11 @@ void PairSDPDVENoFluc::compute(int eflag, int vflag)
       if (mask[i] & groupbit_cons){
         for (k=0; k<3; k++){
           for (l=k; l<3; l++){       
-            PI_i[k][l] = 0.0;
+            if (l==k) PI_i[k][l] = 0.0;
+            else{
+              PI_i[k][l] = 0.0;
+              PI_i[l][k] = 0.0;
+            }
           }
         }
       } else {
@@ -398,8 +402,12 @@ void PairSDPDVENoFluc::compute(int eflag, int vflag)
           if (rsq < cutsq[itype][jtype]) {
             if (mask[j] & groupbit_cons){
               for (k=0; k<3; k++){
-                for (l=k; l<3; l++){              
-                  PI_j[k][l] = 0.0;
+                for (l=k; l<3; l++){   
+                  if (l==k) PI_j[k][l] = 0.0;
+                  else{ 
+                    PI_j[k][l] = 0.0; 
+                    PI_j[l][k] = 0.0;
+                  }
                 }
               }
             } else {

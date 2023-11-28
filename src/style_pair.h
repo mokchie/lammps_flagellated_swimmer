@@ -81,6 +81,7 @@
 #include "pair_sdpdve_2d.h"
 #include "pair_sdpdve_no_edyn.h"
 #include "pair_sdpdve_no_edyn_2d.h"
+#include "pair_sdpdve_no_fluc.h"
 #include "pair_sdpdve_no_fluc_2d.h"
 #include "pair_soft.h"
 #include "pair_srp.h"

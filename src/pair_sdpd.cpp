@@ -218,12 +218,15 @@ void PairSDPD::compute(int eflag, int vflag)
     jnum = numneigh[i];
 
     if (mask[i] & groupbit){
-      wd = rho[i]/rho0[itype][itype];
-      p_i = wd;
-      for (k = 0; k < g_exp-1; k++)
-        p_i *= wd;
-      p_i = p0*p_i + bb;
-      //p_i = p0*pow(rho[i]/rho0[itype][itype],g_exp) + bb;
+      if(mask[i] & groupbit_cons) p_i = 0.0;
+      else{
+        wd = rho[i]/rho0[itype][itype];
+        p_i = wd;
+        for (k = 0; k < g_exp-1; k++)
+          p_i *= wd;
+        p_i = p0*p_i + bb;
+        //p_i = p0*pow(rho[i]/rho0[itype][itype],g_exp) + bb;
+      }
 
       if (n_stress)
         for (k = 0; k < n_stress; k++){
@@ -245,12 +248,15 @@ void PairSDPD::compute(int eflag, int vflag)
           jtype = type[j];
 
           if (rsq < cutsq[itype][jtype]) {
-            wd = rho[j]/rho0[jtype][jtype];
-            p_j = wd;
-            for (k = 0; k < g_exp-1; k++)
-              p_j *= wd;
-            p_j = p0*p_j + bb;
-            //p_j = p0*pow(rho[j]/rho0[jtype][jtype],g_exp) + bb;
+            if (mask[j] & groupbit_cons) p_j = 0.0;
+            else{
+              wd = rho[j]/rho0[jtype][jtype];
+              p_j = wd;
+              for (k = 0; k < g_exp-1; k++)
+                p_j *= wd;
+              p_j = p0*p_j + bb;
+              //p_j = p0*pow(rho[j]/rho0[jtype][jtype],g_exp) + bb;
+            }
 
             r = sqrt(rsq);
             if (r < EPSILON) continue;     // r can be 0.0 in SDPD systems
@@ -281,11 +287,7 @@ void PairSDPD::compute(int eflag, int vflag)
 
             gam = r20_7*eta[itype][jtype]*wd/rho[i]/rho[j];
             sig = 2.0*sqrt(temperature*gam)*dtinvsqrt;
-            if ((mask[i] & groupbit_cons) || (mask[j] & groupbit_cons)){
-              fpair = (p_i/rho[i]/rho[i] + p_j/rho[j]/rho[j])*wd; // conservative force
-            } else {
-              fpair = 0.0; //conservative force is turn off for the group specified by groupcons, this facility is for squirmer model
-            }
+            fpair = (p_i/rho[i]/rho[i] + p_j/rho[j]/rho[j])*wd; // conservative force
             fpair -= gam*dot*rinv;  // drag force 
             fpair += sig*wrr[3]*rinv;  // random force
             fpair *= factor_dpd;
